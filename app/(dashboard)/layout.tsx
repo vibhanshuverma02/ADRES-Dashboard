@@ -174,3 +174,11 @@ export default async function DashboardLayout({ children }: DashboardProps) {
     redirect(`${process.env.NEXT_PUBLIC_APP_URL || "https://13.203.206.32"}/login`);
   }
 }
+// ```
+
+// ---
+
+// Also update dashboard `.env`:
+// ```
+// NEXT_PUBLIC_API_URL=https://13.203.206.32/api
+// NEXT_PUBLIC_APP_URL=https://13.203.206.32
