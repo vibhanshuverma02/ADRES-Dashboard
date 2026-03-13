@@ -38,10 +38,8 @@ export async function middleware(req: NextRequest) {
     return res;
   }
 
-  // STEP 3: Redirect to login
-  url.port = "3002";
-  url.pathname = "/login";
-  return NextResponse.redirect(url);
+ // STEP 3: Redirect to login — fix the URL
+return NextResponse.redirect(new URL("https://13.203.206.32/login"));
 }
 
 export const config = {

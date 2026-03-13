@@ -154,14 +154,16 @@ api.interceptors.response.use(
 
     try {
       const res = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/auth/refresh`, {}, { withCredentials: true });
-      const newToken = res.data?.accessToken;
-      if (newToken) {
-        store.setAuth?.(store.user, newToken);
-        localStorage.setItem("accessToken", newToken);
-        processQueue(null, newToken);
-        original.headers.Authorization = `Bearer ${newToken}`;
-        return api(original);
-      }
+const newToken = res.data?.accessToken;
+if (newToken) {
+  store.setAuth?.(store.user, newToken);
+  localStorage.setItem("accessToken", newToken);
+  // ✅ Add this
+  document.cookie = `accessToken=${newToken}; path=/; SameSite=Lax; Secure`;
+  processQueue(null, newToken);
+  original.headers.Authorization = `Bearer ${newToken}`;
+  return api(original);
+}
     } catch (err) {
       processQueue(err, null);
       store.logout?.();
