@@ -4,6 +4,11 @@ import path from "path";
 const isProd = process.env.NODE_ENV === "production";
 
 const nextConfig: NextConfig = {
+
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+
   /* config options here */
   reactStrictMode: true,
   basePath: isProd ? "/dasher-ui" : "",

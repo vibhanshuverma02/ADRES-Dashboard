@@ -119,7 +119,7 @@ export default function ThematicClustersPage() {
                     onClick={() => { setSelected(c); setPanel("detail"); }}
                     role="button"
                     tabIndex={0}
-                    onKeyDown={(e) => { if (e.key === "Enter") { setSelected(c); setPanel("detail"); } }}
+                    onKeyDown={(e: { key: string; }) => { if (e.key === "Enter") { setSelected(c); setPanel("detail"); } }}
                     className={`w-full text-left rounded-xl border p-4 transition-all cursor-pointer ${
                       isActive
                         ? `${pal.bg} ${pal.border} shadow-sm`

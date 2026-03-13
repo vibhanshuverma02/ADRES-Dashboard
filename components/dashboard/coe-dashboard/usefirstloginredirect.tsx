@@ -1,7 +1,8 @@
 "use client";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import api from "@/helper/api"; // your axios instance
+import api from "helper/api";
+
 
 export default function useFirstLoginRedirect() {
   const router = useRouter();

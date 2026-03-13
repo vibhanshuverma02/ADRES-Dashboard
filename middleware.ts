@@ -10,7 +10,7 @@ export async function middleware(req: NextRequest) {
 
   // STEP 1: Validate current token
   if (accessToken) {
-    const me = await fetch("http://localhost:3010/auth/me", {
+    const me = await fetch("https://13.203.206.32/api/auth/me", {
       headers: { Authorization: `Bearer ${accessToken}` },
       credentials: "include",
     });
@@ -24,7 +24,7 @@ export async function middleware(req: NextRequest) {
   }
 
   // STEP 2: Try refreshing token
-  const refresh = await fetch("http://localhost:3010/auth/refresh", {
+  const refresh = await fetch("https://13.203.206.32/api/auth/refresh", {
     method: "POST",
     headers: { cookie: req.cookies.toString() },
   });
@@ -59,7 +59,7 @@ export const config = {
 //   if (accessToken) {
 //     console.log("middleware mein");
 
-//     const meRes = await fetch("http://localhost:3010/auth/me", {
+//     const meRes = await fetch("https://13.203.206.32/api/auth/me", {
 //       headers: { Authorization: `Bearer ${accessToken}` },
 //       credentials: "include", // 👈 forward cookies
 //     });
@@ -81,7 +81,7 @@ export const config = {
 //   }
 
 //   // ✅ Step 2: try refresh
-//   const refreshRes = await fetch("http://localhost:3010/auth/refresh", {
+//   const refreshRes = await fetch("https://13.203.206.32/api/auth/refresh", {
 //     method: "POST",
 //     headers: { cookie: req.cookies.toString() }, // forward RT
 //   });

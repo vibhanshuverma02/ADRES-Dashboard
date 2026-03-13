@@ -20,7 +20,7 @@
 //     const token = (await cookieStore).get("accessToken")?.value;
 
 //     if (!token) {
-//       redirect("http://localhost:3002/login");
+//       redirect("https://13.203.206.32/login");
 //     }
 
 //     const me = await apiServer.get("/auth/me", {
@@ -32,7 +32,7 @@
 //     }
 
 //     if (!me.data.roles?.includes("SUPER_ADMIN")) {
-//       redirect("http://localhost:3002/choose-role");
+//       redirect("https://13.203.206.32/choose-role");
 //     }
 
 //     return (
@@ -62,7 +62,7 @@
 //     );
 //   } catch (err) {
 //     console.error("❌ Dashboard access failed", err);
-//     redirect("http://localhost:3002/login");
+//     redirect("https://13.203.206.32/login");
 //   }
 // }
 // app/(dashboard)/layout.tsx
@@ -86,23 +86,23 @@ export const dynamic = "force-dynamic";
 // const token = (await cookieStore).get("accessToken")?.value;
 // const activeRole = (await cookieStore).get("activeRole")?.value;
 
-// if (!token) redirect("http://localhost:3002/login");
+// if (!token) redirect("https://13.203.206.32/login");
 
-// const res = await fetch("http://localhost:3010/auth/me", {
+// const res = await fetch("https://13.203.206.32/api/auth/me", {
 //   headers: { Authorization: `Bearer ${token}` },
 //   credentials: "include",
 // });
 
 // if (!res.ok) {
 //   console.log("❌ /auth/me fail hua", res.status);
-//   redirect("http://localhost:3002/login");
+//   redirect("https://13.203.206.32/login");
 // }
 
 // const me = await res.json();
 // console.log(me)
 
 // if (!activeRole || !me.roles?.includes(activeRole)) {
-//   redirect("http://localhost:3002/choose-role");
+//   redirect("https://13.203.206.32/choose-role");
 // }
 
 
@@ -132,7 +132,7 @@ export const dynamic = "force-dynamic";
 //     );
 //   } catch (err) {
 //     console.error("❌ Dashboard access failed", err);
-//     redirect("http://localhost:3002/login");
+//     redirect("https://13.203.206.32/login");
 //   }
 // }
 // app/(dashboard)/layout.tsx
@@ -144,36 +144,36 @@ export default async function DashboardLayout({ children }: DashboardProps) {
     const token = (await cookieStore).get("accessToken")?.value;
     const activeRole = (await cookieStore).get("activeRole")?.value;
 
-    if (!token) redirect("http://localhost:3002/login");
+    if (!token) redirect("https://13.203.206.32/login");
 
     // --- Step 1: Basic auth info ---
-    const res = await fetch("http://localhost:3010/auth/me", {
+    const res = await fetch("https://13.203.206.32/api/auth/me", {
       headers: { Authorization: `Bearer ${token}` },
       credentials: "include",
     });
-    if (!res.ok) redirect("http://localhost:3002/login");
+    if (!res.ok) redirect("https://13.203.206.32/login");
 
     const me = await res.json();
 
     if (!activeRole || !me.roles?.includes(activeRole)) {
-      redirect("http://localhost:3002/choose-role");
+      redirect("https://13.203.206.32/choose-role");
     }
 
     // --- Step 2: Role-specific profile to get logo etc. ---
     let profile = null;
     if (activeRole === "COE_MANAGER") {
-      const coeRes = await fetch("http://localhost:3010/coes/profile", {
+      const coeRes = await fetch("https://13.203.206.32/api/coes/profile", {
         headers: { Authorization: `Bearer ${token}` },
       });
       profile = coeRes.ok ? await coeRes.json() : null;
     } else if (activeRole === "SUPER_ADMIN") {
-      const adminRes = await fetch("http://localhost:3010/admin/profile", {
+      const adminRes = await fetch("https://13.203.206.32/api/admin/profile", {
         headers: { Authorization: `Bearer ${token}` },
       });
       profile = adminRes.ok ? await adminRes.json() : null;
     } else if (activeRole === "RESEARCHER") {
       const researcherRes = await fetch(
-        `http://localhost:3010/users/profile/${me.sub}`,
+        `https://13.203.206.32/api/users/profile/${me.sub}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       profile = researcherRes.ok ? await researcherRes.json() : null;
@@ -204,6 +204,6 @@ export default async function DashboardLayout({ children }: DashboardProps) {
     );
   } catch (err) {
     console.error("❌ Dashboard access failed", err);
-    redirect("http://localhost:3002/login");
+    redirect("https://13.203.206.32/login");
   }
 }
