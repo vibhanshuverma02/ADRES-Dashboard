@@ -1,0 +1,390 @@
+import { useContext, ReactNode, MouseEvent } from "react";
+import { AccordionContext, useAccordionButton, Nav } from "react-bootstrap";
+import Link from "next/link";
+
+interface CustomToggleProps {
+  children: ReactNode;
+  eventKey: string;
+  className?: string;
+  href?: string;
+  icon?: ReactNode;
+  callback?: (eventKey: string) => void;
+  disabled?: boolean;
+  hasSubChild?: boolean; // detects if arrow needed
+}
+
+// Root-level toggle
+export default function CustomToggle({
+  children,
+  eventKey,
+  icon,
+  callback,
+  disabled = false,
+}: CustomToggleProps) {
+  const { activeEventKey } = useContext(AccordionContext);
+
+  const decoratedOnClick = useAccordionButton(eventKey, () => {
+    if (!disabled && callback) callback(eventKey);
+  });
+
+  const handleClick = (e: MouseEvent) => {
+    if (disabled) {
+      e.preventDefault();
+      e.stopPropagation();
+    } else {
+      decoratedOnClick(e);
+    }
+  };
+
+  const isCurrentEventKey = activeEventKey === eventKey;
+
+  return (
+    <Nav.Item as="li" className="dropdown">
+      <Nav.Link
+        href="#"
+        onClick={handleClick}
+        aria-expanded={isCurrentEventKey}
+        className={`dropdown-toggle d-flex align-items-center justify-content-between ${
+          disabled ? "disabled" : ""
+        }`}
+      >
+        <span className="d-flex align-items-center gap-2">
+          {icon && <span className="nav-icon">{icon}</span>}
+          <span className="text">{children}</span>
+        </span>
+        <span
+          className="arrow"
+          style={{
+            display: "inline-block",
+            transition: "transform 0.3s ease",
+            transform: isCurrentEventKey ? "rotate(180deg)" : "rotate(0deg)",
+          }}
+        >
+          ▼
+        </span>
+      </Nav.Link>
+    </Nav.Item>
+  );
+}
+
+// Second-level toggle (recursive compatible)
+export function CustomToggleLevel2({
+  children,
+  eventKey,
+  className = "nav-link",
+  href = "#",
+  disabled = false,
+  hasSubChild = false,
+}: CustomToggleProps) {
+  const { activeEventKey } = useContext(AccordionContext);
+
+  const decoratedOnClick = useAccordionButton(eventKey);
+
+  const handleClick = (e: MouseEvent) => {
+    if (disabled) {
+      e.preventDefault();
+      e.stopPropagation();
+    } else {
+      decoratedOnClick(e);
+    }
+  };
+
+  const isCurrentEventKey = activeEventKey === eventKey;
+
+  return (
+    <Link
+      href={href}
+      className={`${className} d-flex align-items-center justify-content-between ${
+        disabled ? "disabled" : ""
+      } ${hasSubChild ? "dropdown-toggle" : ""}`}
+      onClick={handleClick}
+      aria-expanded={isCurrentEventKey}
+    >
+      <span>{children}</span>
+      {hasSubChild && (
+        <span
+          className="arrow"
+          style={{
+            display: "inline-block",
+            transition: "transform 0.3s ease",
+            transform: isCurrentEventKey ? "rotate(180deg)" : "rotate(0deg)",
+          }}
+        >
+          ▼
+        </span>
+      )}
+    </Link>
+  );
+}
+
+
+
+
+
+
+
+"use client";
+
+import React, { Fragment } from "react";
+import { Image, Accordion, ListGroup, Badge, Nav } from "react-bootstrap";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+
+import { MenuItemType } from "types/menuTypes";
+import CustomToggle, { CustomToggleLevel2 } from "./SidebarMenuToggle";
+import { DashboardMenu } from "routes/DashboardRoute";
+
+import useMenu from "hooks/useMenu";
+import { getAssetPath } from "helper/assetPath";
+
+interface SidebarProps {
+  hideLogo?: boolean;
+  containerId?: string;
+}
+
+const Sidebar: React.FC<SidebarProps> = ({ hideLogo = false, containerId }) => {
+  const location = usePathname();
+  const { showMenu } = useMenu();
+
+  // Generate link that is disabled if sidebar is collapsed
+  const generateLink = (item: MenuItemType) => (
+    <Link
+      href={showMenu ? `${item.link}` : "#"}
+      className={`nav-link ${location === `/${item.link}` ? "active" : ""} ${
+        !showMenu ? "disabled" : ""
+      }`}
+      onClick={(e) => !showMenu && e.preventDefault()}
+    >
+      {item.name}
+      {item.badge && (
+        <Badge className="ms-1" bg={item.badgecolor || "primary"}>
+          {item.badge}
+        </Badge>
+      )}
+    </Link>
+  );
+
+  return (
+  <div id={containerId} className="sidebar">
+    {!hideLogo && (
+      <div className="brand-logo">
+        <Link href="/" className="d-none d-md-flex align-items-center gap-2">
+          <Image
+            src={getAssetPath("/images/brand/logo/logo-icon.svg")}
+            alt="logo"
+          />
+          <span className="fw-bold fs-4 site-logo-text">Dasher</span>
+        </Link>
+      </div>
+    )}
+
+    <Accordion
+      defaultActiveKey={showMenu ? "0" : undefined} // don't expand if collapsed
+      as="ul"
+      bsPrefix="navbar-nav flex-column"
+      className="gap-0 p-0 m-0"
+    >
+      {DashboardMenu.map((menu, index) => {
+        if (menu.grouptitle) {
+          return (
+            <Nav.Item key={index} as="li" className="p-0 m-0">
+              <div className="nav-heading">{menu.title}</div>
+              <hr className="mx-5 nav-line mb-1" />
+            </Nav.Item>
+          );
+        }
+
+        if (menu.children) {
+          return (
+            <Fragment key={index}>
+              <CustomToggle
+                eventKey={index.toString()}
+                icon={menu.icon}
+                disabled={!showMenu}
+              >
+                {menu.title}
+              </CustomToggle>
+              <Accordion.Collapse eventKey={index.toString()}>
+                <ListGroup as="ul" className="dropdown-menu flex-column p-0 m-0">
+                  {menu.children.map((child, childIndex) => {
+                    const hasSubChild = !!child.children?.length;
+
+                    return hasSubChild ? (
+                      <ListGroup.Item
+                        as="li"
+                        bsPrefix="nav-item level-2"
+                        key={childIndex}
+                        className="p-0 m-0"
+                      >
+                        <Accordion flush>
+                          <CustomToggleLevel2
+                            eventKey={`${index}-${childIndex}`}
+                            disabled={!showMenu}
+                            hasSubChild={hasSubChild} // 🔥 pass hasSubChild
+                          >
+                            {child.title ?? child.name}
+                          </CustomToggleLevel2>
+                          <Accordion.Collapse eventKey={`${index}-${childIndex}`}>
+                            <ListGroup as="ul" className="nav flex-column p-0 m-0">
+                              {child.children?.map((subChild, subChildIndex) => {
+                                const hasSubSubChild = !!subChild.children?.length;
+                                return hasSubSubChild ? (
+                                  <ListGroup.Item
+                                    as="li"
+                                    bsPrefix="nav-item level-3"
+                                    key={subChildIndex}
+                                    className="p-0 m-0"
+                                  >
+                                    <Accordion flush>
+                                      <CustomToggleLevel2
+                                        eventKey={`${index}-${childIndex}-${subChildIndex}`}
+                                        disabled={!showMenu}
+                                        hasSubChild={hasSubSubChild} // 🔥 pass hasSubChild
+                                      >
+                                        {subChild.title ?? subChild.name}
+                                      </CustomToggleLevel2>
+                                      <Accordion.Collapse
+                                        eventKey={`${index}-${childIndex}-${subChildIndex}`}
+                                      >
+                                        <ListGroup
+                                          as="ul"
+                                          className="nav flex-column p-0 m-0"
+                                        >
+                                          {subChild.children?.map((item, i) => (
+                                            <ListGroup.Item
+                                              as="li"
+                                              bsPrefix="nav-item level-4"
+                                              key={i}
+                                              className="p-0 m-0"
+                                            >
+                                              {generateLink(item)}
+                                            </ListGroup.Item>
+                                          ))}
+                                        </ListGroup>
+                                      </Accordion.Collapse>
+                                    </Accordion>
+                                  </ListGroup.Item>
+                                ) : (
+                                  <ListGroup.Item
+                                    as="li"
+                                    bsPrefix="nav-item level-3"
+                                    key={subChildIndex}
+                                    className="p-0 m-0"
+                                  >
+                                    {generateLink(subChild)}
+                                  </ListGroup.Item>
+                                );
+                              })}
+                            </ListGroup>
+                          </Accordion.Collapse>
+                        </Accordion>
+                      </ListGroup.Item>
+                    ) : (
+                      <ListGroup.Item
+                        as="li"
+                        bsPrefix="nav-item"
+                        key={childIndex}
+                        className="p-0 m-0"
+                      >
+                        {generateLink(child)}
+                      </ListGroup.Item>
+                    );
+                  })}
+                </ListGroup>
+              </Accordion.Collapse>
+            </Fragment>
+          );
+        }
+
+        return (
+          <Nav.Item as="li" key={index} className="p-0 m-0">
+            <Link
+              href={menu.link ?? "#"}
+              className={`nav-link ${location === menu.link ? "active" : ""} ${
+                !showMenu ? "disabled" : ""
+              }`}
+              onClick={(e) => !showMenu && e.preventDefault()}
+            >
+              <span className="nav-icon">{menu.icon}</span>
+              <span className="text">{menu.title}</span>
+            </Link>
+          </Nav.Item>
+        );
+      })}
+    </Accordion>
+  </div>
+);
+
+};
+
+export default Sidebar;
+
+
+
+
+// app/(dashboard)/layout.tsx
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import apiServer from "helper/server_api";
+
+import Header from "layouts/header/Header";
+import Sidebar from "layouts/Sidebar";
+import ClientWrapper from "components/common/ClientWrapper";
+
+interface DashboardProps {
+  children: React.ReactNode;
+}
+
+export const dynamic = "force-dynamic";
+
+export default async function DashboardLayout({ children }: DashboardProps) {
+  try {
+    const cookieStore = cookies();
+    const token = (await cookieStore).get("accessToken")?.value;
+
+    if (!token) {
+      redirect("http://localhost:3002/login");
+    }
+
+    const me = await apiServer.get("/auth/me", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    if (!me) {
+      console.log("failhua refresh naimila");
+    }
+
+    if (!me.data.roles?.includes("SUPER_ADMIN")) {
+      redirect("http://localhost:3002/choose-role");
+    }
+
+    return (
+      <ClientWrapper user={me.data} token={token}>
+        <div>
+          {/* ✅ Sidebar visible only on desktop */}
+          <div className="d-none d-lg-block">
+            <Sidebar hideLogo={true} containerId="miniSidebar" />
+          </div>
+
+          <div id="content" className="position-relative h-100">
+            <Header />
+            <div className="custom-container">{children}</div>
+            <div className="custom-container">
+              <span className="me-1">Theme distributed by - </span>
+              <a
+                href="https://www.themewagon.com/"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                ThemeWagon
+              </a>
+            </div>
+          </div>
+        </div>
+      </ClientWrapper>
+    );
+  } catch (err) {
+    console.error("❌ Dashboard access failed", err);
+    redirect("http://localhost:3002/login");
+  }
+}

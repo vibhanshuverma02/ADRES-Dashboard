@@ -1,0 +1,187 @@
+// 🎨 Define depth text colors
+$depth-colors: (
+  1: #1a531b,  // parent (dark green)
+  2: #2e8b57,  // child
+  3: #66cdaa,  // subchild
+  4: #98fb98   // deeper
+);
+
+@mixin sidebar-reset {
+  // Reset basics
+  .nav,
+  .list-group,
+  .dropdown-menu,
+  .accordion,
+  .accordion-collapse {
+    padding: 0 !important;
+    margin: 0 !important;
+    border: 0 !important;
+    list-style: none;
+  }
+
+  .nav-item,
+  .list-group-item {
+    padding: 0 !important;
+    margin: 0 !important;
+    border: 0 !important;
+    position: relative;
+    background: none !important;
+  }
+
+  // Base link styles
+  .nav-link {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-radius: 0.25rem;
+    transition: all 0.2s ease-in-out;
+    text-decoration: none;
+    font-weight: 500;
+    background: none !important;
+
+    &.active {
+      background: none !important;
+      font-weight: 600;
+      text-decoration: none;
+    }
+
+    &.disabled {
+      opacity: 0.5;
+      pointer-events: none;
+    }
+  }
+
+  // 🔁 Apply per-depth text + arrow coloring dynamically
+  @each $depth, $color in $depth-colors {
+    .depth-#{$depth} {
+      > .nav-link,
+      &.nav-item > .nav-link {
+        color: $color;
+
+        &:hover {
+          color: $color !important;
+          text-decoration: none;
+          background: none !important;
+        }
+
+        &.active,
+        .isOpenBranch > & {
+          font-weight: 600;
+          color: $color !important;
+          background: none !important;
+        }
+
+        // ✅ Custom arrow (force override)
+        &.dropdown-toggle::after {
+          content: "▼" !important;
+          font-size: 0.7rem !important;
+          margin-left: auto !important;
+          transition: transform 0.3s ease !important;
+          color: 0.3s ease !important;
+          color: $color !important;
+          display: inline-block !important;
+        }
+
+        &[aria-expanded="true"]::after {
+          transform: rotate(90deg) !important;
+        }
+
+        &[aria-expanded="false"]::after {
+          transform: rotate(0deg) !important;
+        }
+      }
+    }
+  }
+
+  // ❌ Kill Bootstrap caret globally
+  .nav-link.dropdown-toggle::after {
+    display: none !important;
+    content: none !important;
+  }
+
+  // Dropdown menu
+  .dropdown-menu {
+    padding: 0.25rem 0;
+    border-radius: 0.25rem;
+    background-color: #fff;
+    box-shadow: 0 0.25rem 0.5rem rgba(0, 0, 0, 0.1);
+  }
+
+  // Headings
+  .nav-heading {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #666;
+    text-transform: uppercase;
+    padding: 0.5rem 1rem 0.25rem 1rem;
+  }
+
+  .nav-line {
+    border: none;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    margin: 0.25rem 0;
+  }
+}
+
+// Apply globally
+.sidebar {
+  @include sidebar-reset;
+
+  // 🔥 Scrollable sidebar
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+
+  .brand-logo {
+    flex-shrink: 0;
+    padding: 1rem;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  }
+
+  .sidebar-scroll {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 0.5rem 0;
+
+    &::-webkit-scrollbar {
+      width: 6px;
+    }
+    &::-webkit-scrollbar-thumb {
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 3px;
+    }
+    &::-webkit-scrollbar-thumb:hover {
+      background: rgba(0, 0, 0, 0.35);
+    }
+  }
+}
+
+
+.dashboard-root {
+    > .nav-link {
+      font-size: 1.1rem; // slightly larger
+      font-weight: 700;  // bold
+      color: #0dfd71  ; // bootstrap primary (blue)
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+
+      // Add subtle background highlight
+      background: rgba(13, 253, 29, 0.1) !important;
+      border-radius: 0.375rem;
+      padding: 0.75rem 1rem;
+
+      &:hover {
+        background: rgba(9, 255, 99, 0.2) !important;
+        text-decoration: none;
+      }
+
+      &.active {
+        background: rgba(6, 225, 123, 0.25) !important;
+        color: #0aca67 !important;
+      }
+
+      
+    }
+  }
