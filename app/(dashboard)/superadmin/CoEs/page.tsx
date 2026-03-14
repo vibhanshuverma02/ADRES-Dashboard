@@ -1,6 +1,8 @@
 //import node module libraries
 import { Fragment } from "react";
 import { Metadata } from "next";
+import EcommerceHeader from "components/ecommerce/EcommerceHeader";
+import ProductListing from "components/ecommerce/ProductListing";
 
 
 
@@ -12,7 +14,8 @@ export const metadata: Metadata = {
 const Ecommerce = () => {
   return (
     <Fragment>
-     
+    <EcommerceHeader/>
+<ProductListing/>
     </Fragment>
   );
 };
