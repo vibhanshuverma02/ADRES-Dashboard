@@ -10,7 +10,7 @@
 
 //   // STEP 1: Validate current token
 //   if (accessToken) {
-//     const me = await fetch("https://13.203.206.32/api/auth/me", {
+//     const me = await fetch("https://adresnetwork.iitr.ac.in/api/auth/me", {
 //       headers: { Authorization: `Bearer ${accessToken}` },
 //       credentials: "include",
 //     });
@@ -24,7 +24,7 @@
 //   }
 
 //   // STEP 2: Try refreshing token
-//   const refresh = await fetch("https://13.203.206.32/api/auth/refresh", {
+//   const refresh = await fetch("https://adresnetwork.iitr.ac.in/api/auth/refresh", {
 //     method: "POST",
 //     headers: { cookie: req.cookies.toString() },
 //   });
@@ -39,28 +39,28 @@
 //   }
 
 //  // STEP 3: Redirect to login — fix the URL
-// return NextResponse.redirect(new URL("https://13.203.206.32/login"));
+// return NextResponse.redirect(new URL("https://adresnetwork.iitr.ac.in/login"));
 // }
 
 // export const config = {
 //   matcher: ["/superadmin/:path*", "/coemanager/:path*", "/researcher/:path*"],
 // };
 // middleware.ts in dashboard repo
-import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
+  import { NextResponse } from "next/server";
+  import type { NextRequest } from "next/server";
 
-export async function middleware(req: NextRequest) {
-  const accessToken = req.cookies.get("accessToken")?.value;
-  const activeRole = req.cookies.get("activeRole")?.value;
+  export async function middleware(req: NextRequest) {
+    const accessToken = req.cookies.get("accessToken")?.value;
+    const activeRole = req.cookies.get("activeRole")?.value;
 
-  // Just check if cookies exist — no backend call needed
-  if (!accessToken || !activeRole) {
-    return NextResponse.redirect("https://13.203.206.32/login");
+    // Just check if cookies exist — no backend call needed
+    if (!accessToken || !activeRole) {
+      return NextResponse.redirect("https://adresnetwork.iitr.ac.in/login");
+    }
+
+    return NextResponse.next();
   }
 
-  return NextResponse.next();
-}
-
-export const config = {
-  matcher: ["/superadmin/:path*", "/coemanager/:path*", "/researcher/:path*"],
-};
+  export const config = {
+    matcher: ["/superadmin/:path*", "/coemanager/:path*", "/researcher/:path*"],
+  };
