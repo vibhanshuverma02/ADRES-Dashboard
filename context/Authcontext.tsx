@@ -1,13 +1,9 @@
 // "use client";
 // import { roleUrlMap } from "helper/assetPath";
 // import { useRouter } from "next/navigation";
-// import {
-//   createContext,
-//   useContext,
-//   useState,
-//   useEffect,
-//   ReactNode,
-// } from "react";
+
+
+// import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 
 // type AuthContextType = {
 //   user: any;
@@ -16,7 +12,6 @@
 //   setAuth: (user: any, token: string | null) => void;
 //   switchRole: (role: string) => void;
 //   logout: () => void;
-//   orgLogo?: string | null; // ✅ add this
 // };
 
 // const AuthContext = createContext<AuthContextType | null>(null);
@@ -25,7 +20,7 @@
 //   children,
 //   user,
 //   token,
-//   initialRole,
+//   initialRole, // 👈 layout.tsx se roleFromUrl aayega
 // }: {
 //   children: ReactNode;
 //   user: any;
@@ -34,45 +29,24 @@
 // }) {
 //   const [authUser, setAuthUser] = useState<any>(user || null);
 //   const [authToken, setAuthToken] = useState<string | null>(token || null);
+
+//   // 👇 activeRole logic
 //   const [activeRole, setActiveRole] = useState<string | null>(null);
 
-// const [orgLogo, setOrgLogo] = useState<string | null>(user?.orgLogo || null);
-//   const router = useRouter();
-
-//   // ✅ Sync role safely (avoid hydration mismatch)
 //   useEffect(() => {
 //     if (authUser) {
+//       // agar URL se role valid hai use karo, otherwise default [0]
 //       const validRoles = authUser.roles || [];
+//       const defaultRole =
+//         initialRole && validRoles.some((r: string) => r.toLowerCase() === initialRole.toLowerCase())
+//           ? initialRole
+//           : validRoles[0] || null;
 
-//       // server-side role > localStorage role > first available role
-//       const storedRole = localStorage.getItem("activeRole");
-
-//       let finalRole: string | null = null;
-
-//       if (
-//         initialRole &&
-//         validRoles.some((r: string) => r.toLowerCase() === initialRole.toLowerCase())
-//       ) {
-//         finalRole = initialRole;
-//       } else if (
-//         storedRole &&
-//         validRoles.some((r: string) => r.toLowerCase() === storedRole.toLowerCase())
-//       ) {
-//         finalRole = storedRole;
-//       } else {
-//         finalRole = validRoles[0] || null;
-//       }
-
-//       setActiveRole(finalRole);
-
-//       if (finalRole) {
-//         localStorage.setItem("activeRole", finalRole);
-//         document.cookie = `activeRole=${finalRole}; path=/; SameSite=Lax`;
-//       }
+//       setActiveRole(defaultRole);
 //     }
 //   }, [authUser, initialRole]);
 
-//   // ✅ persist token + user
+//   // persist token + user
 //   useEffect(() => {
 //     if (authToken) {
 //       localStorage.setItem("accessToken", authToken);
@@ -85,57 +59,36 @@
 //     } else {
 //       localStorage.removeItem("user");
 //     }
-//      if (authUser?.orgLogo) {
-//     setOrgLogo(authUser.orgLogo);
-//   }
 //   }, [authToken, authUser]);
-
-//  useEffect(() => {
-//   if (user?.firstlogin && user.roles.includes("COE_MANAGER")) {
-//     router.push("/coemanager/Dashboard/setup-areas");
-//   }
-// }, [user]);
 
 //   const setAuth = (newUser: any, newToken: string | null) => {
 //     setAuthUser(newUser);
 //     setAuthToken(newToken);
 //   };
-
+// const router = useRouter();
 //   const switchRole = (role: string) => {
-//     if (authUser?.roles?.includes(role)) {
-//       setActiveRole(role);
-//       localStorage.setItem("activeRole", role);
-//       document.cookie = `activeRole=${role}; path=/; SameSite=Lax`; // ✅ cookie update
+//   if (authUser?.roles?.includes(role)) {
+//     setActiveRole(role);
+//     localStorage.setItem("activeRole", role);
 
-//       const urlSegment = roleUrlMap[role];
-//       if (urlSegment) {
-//         router.push(`/${urlSegment}/Dashboard`);
-//       }
-//     }
-//   };
-
+//     // ✅ Navigate based on role mapping
+//     const urlSegment = roleUrlMap[role];
+//     if (urlSegment) {
+//       router.push(`/${urlSegment}/Dashboard`);
+//     } 
+//   }
+// };
 //   const logout = () => {
 //     setAuthUser(null);
 //     setAuthToken(null);
 //     setActiveRole(null);
 //     localStorage.removeItem("accessToken");
 //     localStorage.removeItem("user");
-//     localStorage.removeItem("activeRole");
-//     document.cookie =
-//       "activeRole=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
 //   };
 
 //   return (
 //     <AuthContext.Provider
-//       value={{
-//         user: authUser,
-//         token: authToken,
-//         activeRole,
-//         setAuth,
-//         switchRole,
-//         orgLogo, 
-//         logout,
-//       }}
+//       value={{ user: authUser, token: authToken, activeRole, setAuth, switchRole, logout }}
 //     >
 //       {children}
 //     </AuthContext.Provider>
@@ -165,7 +118,7 @@ type AuthContextType = {
   setAuth: (user: any, token: string | null) => void;
   switchRole: (role: string) => void;
   logout: () => void;
-  orgLogo?: string | null;
+  orgLogo?: string | null; // ✅ add this
 };
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -184,15 +137,18 @@ export function AuthProvider({
   const [authUser, setAuthUser] = useState<any>(user || null);
   const [authToken, setAuthToken] = useState<string | null>(token || null);
   const [activeRole, setActiveRole] = useState<string | null>(null);
-  const [orgLogo, setOrgLogo] = useState<string | null>(user?.orgLogo || null);
 
+const [orgLogo, setOrgLogo] = useState<string | null>(user?.orgLogo || null);
   const router = useRouter();
 
-  // ✅ Sync role on mount
+  // ✅ Sync role safely (avoid hydration mismatch)
   useEffect(() => {
     if (authUser) {
       const validRoles = authUser.roles || [];
+
+      // server-side role > localStorage role > first available role
       const storedRole = localStorage.getItem("activeRole");
+
       let finalRole: string | null = null;
 
       if (
@@ -210,6 +166,7 @@ export function AuthProvider({
       }
 
       setActiveRole(finalRole);
+
       if (finalRole) {
         localStorage.setItem("activeRole", finalRole);
         document.cookie = `activeRole=${finalRole}; path=/; SameSite=Lax`;
@@ -217,15 +174,12 @@ export function AuthProvider({
     }
   }, [authUser, initialRole]);
 
-  // ✅ Persist token + user
+  // ✅ persist token + user
   useEffect(() => {
     if (authToken) {
       localStorage.setItem("accessToken", authToken);
-      // ✅ Also keep cookie in sync
-      document.cookie = `accessToken=${authToken}; path=/; SameSite=Lax; Secure`;
     } else {
       localStorage.removeItem("accessToken");
-      document.cookie = "accessToken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
     }
 
     if (authUser) {
@@ -233,18 +187,16 @@ export function AuthProvider({
     } else {
       localStorage.removeItem("user");
     }
-
-    if (authUser?.orgLogo) {
-      setOrgLogo(authUser.orgLogo);
-    }
+     if (authUser?.orgLogo) {
+    setOrgLogo(authUser.orgLogo);
+  }
   }, [authToken, authUser]);
 
-  // ✅ First login redirect for COE_MANAGER
-  useEffect(() => {
-    if (user?.firstlogin && user.roles?.includes("COE_MANAGER")) {
-      router.push("/coemanager/Dashboard/setup-areas");
-    }
-  }, [user]);
+ useEffect(() => {
+  if (user?.firstlogin && user.roles.includes("COE_MANAGER")) {
+    router.push("/coemanager/Dashboard/setup-areas");
+  }
+}, [user]);
 
   const setAuth = (newUser: any, newToken: string | null) => {
     setAuthUser(newUser);
@@ -255,7 +207,8 @@ export function AuthProvider({
     if (authUser?.roles?.includes(role)) {
       setActiveRole(role);
       localStorage.setItem("activeRole", role);
-      document.cookie = `activeRole=${role}; path=/; SameSite=Lax`;
+      document.cookie = `activeRole=${role}; path=/; SameSite=Lax`; // ✅ cookie update
+
       const urlSegment = roleUrlMap[role];
       if (urlSegment) {
         router.push(`/${urlSegment}/Dashboard`);
@@ -270,8 +223,8 @@ export function AuthProvider({
     localStorage.removeItem("accessToken");
     localStorage.removeItem("user");
     localStorage.removeItem("activeRole");
-    document.cookie = "activeRole=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
-    document.cookie = "accessToken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+    document.cookie =
+      "activeRole=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
   };
 
   return (
@@ -282,7 +235,7 @@ export function AuthProvider({
         activeRole,
         setAuth,
         switchRole,
-        orgLogo,
+        orgLogo, 
         logout,
       }}
     >
