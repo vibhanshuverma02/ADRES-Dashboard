@@ -13,7 +13,19 @@ interface Event {
   abstract?: { id: string; title: string; fileUrl: string; summary?: string } | null;
 }
 interface GalleryItem {
-  id: string; title: string; fileUrl: string; type: string; uploadedAt: string;
+  id: string;
+  title: string;
+  fileUrl: string;
+  type: string;
+  uploadedAt: string;
+  status: "PRIVATE" | "PENDING_APPROVAL" | "APPROVED";
+  coeProfile?: {
+    organization: {
+      id: string;
+      name: string;
+      logo?: string;
+    };
+  };
 }
 type Section = "upcoming" | "request" | "past" | "gallery";
 
@@ -320,6 +332,10 @@ function PastEventCard({ event, onRefresh }: { event: Event; onRefresh: () => vo
 // ═══════════════════════════════════════════════════════════════════════════════
 // GALLERY MANAGER
 // ═══════════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════════
+// GALLERY MANAGER — CoE
+// Grid layout: 3 per row, max 10 items, request to portal, delete
+// ═══════════════════════════════════════════════════════════════════════════════
 function GalleryManager() {
   const [items, setItems] = useState<GalleryItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -328,16 +344,17 @@ function GalleryManager() {
   const [type, setType] = useState<"image" | "video" | "doc">("image");
   const fileRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
+  const [requesting, setRequesting] = useState<string | null>(null);
 
   const load = () => {
     setLoading(true);
-    // ✅ Each fetch returns fresh presigned URLs
     api.get("/gallery/my").then((r) => setItems(r.data)).finally(() => setLoading(false));
   };
   useEffect(load, []);
 
   async function upload(file: File) {
     if (!title.trim()) { alert("Please enter a title first"); return; }
+    if (items.length >= 10) { alert("Maximum 10 gallery items allowed"); return; }
     setBusy(true);
     const fd = new FormData();
     fd.append("file", file);
@@ -346,7 +363,7 @@ function GalleryManager() {
     try {
       await api.post("/gallery/my", fd);
       setTitle("");
-      load(); // re-fetch so new item has a fresh presigned URL too
+      load();
     } catch (err: any) {
       alert(err?.response?.data?.message ?? "Upload failed");
     } finally { setBusy(false); }
@@ -354,38 +371,86 @@ function GalleryManager() {
 
   async function remove(id: string) {
     if (!confirm("Delete this item?")) return;
-    await api.delete(`/gallery/my/${id}`);
-    load();
+    try {
+      await api.delete(`/gallery/my/${id}`);
+      load();
+    } catch (err: any) {
+      alert(err?.response?.data?.message ?? "Delete failed");
+    }
+  }
+
+  async function requestToPortal(id: string) {
+    setRequesting(id);
+    try {
+      await api.post(`/gallery/my/${id}/request-portal`);
+      load();
+    } catch (err: any) {
+      alert(err?.response?.data?.message ?? "Request failed");
+    } finally { setRequesting(null); }
+  }
+
+  async function cancelRequest(id: string) {
+    setRequesting(id);
+    try {
+      await api.post(`/gallery/my/${id}/cancel-request`);
+      load();
+    } catch (err: any) {
+      alert(err?.response?.data?.message ?? "Cancel failed");
+    } finally { setRequesting(null); }
   }
 
   const filtered = activeType === "all" ? items : items.filter((i) => i.type === activeType);
   const accept = type === "image" ? "image/*" : type === "video" ? "video/*" : ".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx";
 
   if (loading) return <Skeleton />;
+
   return (
     <div className="space-y-5">
       {/* Upload panel */}
       <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5">
-        <SectionHeader title="Upload to Gallery" />
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3">
-          <input value={title} onChange={(e) => setTitle(e.target.value)}
-            placeholder="Item title *" className="input" />
-          <select value={type} onChange={(e) => setType(e.target.value as any)} className="input">
-            <option value="image">🖼️ Image</option>
-            <option value="video">🎬 Video</option>
-            <option value="doc">📄 Document</option>
-          </select>
-          <button onClick={() => fileRef.current?.click()} disabled={busy}
-            className="px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-40 transition-colors">
-            {busy ? "Uploading…" : "Choose & Upload"}
-          </button>
+        <div className="flex items-center justify-between mb-4">
+          <SectionHeader title="My Gallery" />
+          <span className={`text-xs font-semibold px-2 py-1 rounded-full ${
+            items.length >= 10 ? "bg-red-100 text-red-600" : "bg-gray-100 text-gray-600"
+          }`}>
+            {items.length}/10 items
+          </span>
         </div>
+
+        {items.length < 10 && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Item title *"
+              className="input"
+            />
+            <select value={type} onChange={(e) => setType(e.target.value as any)} className="input">
+              <option value="image">🖼️ Image</option>
+              <option value="video">🎬 Video</option>
+              <option value="doc">📄 Document</option>
+            </select>
+            <button
+              onClick={() => fileRef.current?.click()}
+              disabled={busy}
+              className="px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-40 transition-colors"
+            >
+              {busy ? "Uploading…" : "Choose & Upload"}
+            </button>
+          </div>
+        )}
         <input ref={fileRef} type="file" accept={accept} className="hidden"
           onChange={(e) => e.target.files?.[0] && upload(e.target.files[0])} />
+
+        {items.length >= 10 && (
+          <p className="text-sm text-red-500 mt-2">
+            Maximum limit reached. Delete an item to upload more.
+          </p>
+        )}
       </div>
 
       {/* Filter tabs */}
-      <div className="flex gap-2">
+      <div className="flex gap-2 flex-wrap">
         {["all", "image", "video", "doc"].map((t) => (
           <button key={t} onClick={() => setActiveType(t)}
             className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
@@ -396,12 +461,27 @@ function GalleryManager() {
         ))}
       </div>
 
+      {/* Legend */}
+      <div className="flex gap-3 text-xs text-gray-500">
+        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-gray-400 inline-block" /> Private</span>
+        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-400 inline-block" /> Pending Approval</span>
+        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" /> On Portal</span>
+      </div>
+
       {filtered.length === 0 ? (
         <Empty message="No items yet. Upload something!" />
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+        // ✅ 3-column grid
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
           {filtered.map((item) => (
-            <GalleryCard key={item.id} item={item} onDelete={() => remove(item.id)} />
+            <CoEGalleryCard
+              key={item.id}
+              item={item}
+              onDelete={() => remove(item.id)}
+              onRequestPortal={() => requestToPortal(item.id)}
+              onCancelRequest={() => cancelRequest(item.id)}
+              isRequesting={requesting === item.id}
+            />
           ))}
         </div>
       )}
@@ -409,26 +489,97 @@ function GalleryManager() {
   );
 }
 
-function GalleryCard({ item, onDelete }: { item: GalleryItem; onDelete: () => void }) {
+// ─── CoE Gallery Card ─────────────────────────────────────────────────────────
+function CoEGalleryCard({
+  item,
+  onDelete,
+  onRequestPortal,
+  onCancelRequest,
+  isRequesting,
+}: {
+  item: GalleryItem;
+  onDelete: () => void;
+  onRequestPortal: () => void;
+  onCancelRequest: () => void;
+  isRequesting: boolean;
+}) {
+  const statusColor =
+    item.status === "APPROVED" ? "bg-emerald-500" :
+    item.status === "PENDING_APPROVAL" ? "bg-amber-400" : "bg-gray-400";
+
+  const statusLabel =
+    item.status === "APPROVED" ? "On Portal" :
+    item.status === "PENDING_APPROVAL" ? "Pending" : "Private";
+
   return (
-    <div className="group relative rounded-xl border border-gray-200 bg-white overflow-hidden shadow-sm">
-      {item.type === "image" ? (
-        <SafeImage src={item.fileUrl} alt={item.title} className="w-full h-32 object-cover" />
-      ) : item.type === "video" ? (
-        <video src={item.fileUrl} className="w-full h-32 object-cover" muted playsInline />
-      ) : (
-        <div className="w-full h-32 bg-gray-100 flex items-center justify-center text-3xl">📄</div>
-      )}
-      <div className="p-2">
-        <p className="text-xs font-medium text-gray-700 truncate">{item.title}</p>
-        <p className="text-[10px] text-gray-400">
-          {formatDistanceToNow(new Date(item.uploadedAt), { addSuffix: true })}
-        </p>
+    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col">
+      {/* Thumbnail */}
+      <div className="relative w-full h-48 bg-gray-100">
+        {item.type === "image" ? (
+          <SafeImage src={item.fileUrl} alt={item.title} className="w-full h-full object-cover" />
+        ) : item.type === "video" ? (
+          <video src={item.fileUrl} className="w-full h-full object-cover" muted playsInline />
+        ) : (
+          <div className="w-full h-full flex flex-col items-center justify-center text-gray-400 gap-2">
+            <span className="text-4xl">📄</span>
+            <span className="text-xs">Document</span>
+          </div>
+        )}
+        {/* Status badge */}
+        <span className={`absolute top-2 right-2 text-[10px] font-semibold px-2 py-0.5 rounded-full text-white ${statusColor}`}>
+          {statusLabel}
+        </span>
       </div>
-      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-        <a href={item.fileUrl} target="_blank" rel="noreferrer"
-          className="text-xs px-2 py-1 bg-white text-gray-800 rounded-lg">View</a>
-        <button onClick={onDelete} className="text-xs px-2 py-1 bg-red-500 text-white rounded-lg">Delete</button>
+
+      {/* Info */}
+      <div className="p-3 flex-1 flex flex-col gap-2">
+        <p className="text-sm font-medium text-gray-800 truncate">{item.title}</p>
+        <p className="text-[10px] text-gray-400">
+          {new Date(item.uploadedAt).toLocaleDateString()}
+        </p>
+
+        {/* Actions */}
+        <div className="flex gap-2 mt-auto flex-wrap">
+          {/* View */}
+          <a
+            href={item.fileUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="text-xs px-3 py-1.5 border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors"
+          >
+            View
+          </a>
+
+          {/* Request / Cancel portal */}
+          {item.status === "PRIVATE" && (
+            <button
+              onClick={onRequestPortal}
+              disabled={isRequesting}
+              className="text-xs px-3 py-1.5 border border-emerald-200 rounded-lg text-emerald-600 hover:bg-emerald-50 transition-colors disabled:opacity-40"
+            >
+              {isRequesting ? "…" : "→ Request Portal"}
+            </button>
+          )}
+          {item.status === "PENDING_APPROVAL" && (
+            <button
+              onClick={onCancelRequest}
+              disabled={isRequesting}
+              className="text-xs px-3 py-1.5 border border-amber-200 rounded-lg text-amber-600 hover:bg-amber-50 transition-colors disabled:opacity-40"
+            >
+              {isRequesting ? "…" : "✕ Cancel Request"}
+            </button>
+          )}
+
+          {/* Delete — not allowed if approved */}
+          {item.status !== "APPROVED" && (
+            <button
+              onClick={onDelete}
+              className="text-xs px-3 py-1.5 border border-red-200 rounded-lg text-red-500 hover:bg-red-50 transition-colors ml-auto"
+            >
+              Delete
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
