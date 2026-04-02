@@ -445,7 +445,7 @@
 //           <Empty message="No gallery items found." />
 //         ) : (
 //           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-//             {filtered.map((item) => (
+//             {filtered.map((item, index) => (
 //               <div key={item.id} className="group relative rounded-xl border border-gray-200 bg-white overflow-hidden shadow-sm">
 //                 {item.type === "image" ? (
 //                   <SafeImage src={item.fileUrl} alt={item.title} className="w-full h-32 object-cover" />
@@ -590,6 +590,7 @@ interface GalleryItem {
 type Section = "pending" | "major" | "minor" | "past" | "gallery";
 type GalleryTab = "pending" | "coe" | "portal";
 
+
 function Badge({ label, color }: { label: string; color: string }) {
   return <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${color}`}>{label}</span>;
 }
@@ -632,6 +633,14 @@ function Skeleton() {
 export default function SuperAdminEventsGalleryPage() {
   const params = useSearchParams();
   const section = (params.get("section") ?? "pending") as Section;
+  const [coes, setCoes] = useState<any[]>([]);
+useEffect(() => {
+  api
+    .get("/coes")
+    .then((res) => setCoes(res.data))
+    .catch((err) => console.error("❌ Failed to fetch COEs", err));
+}, []);
+
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -983,7 +992,8 @@ function ViewModal({ item, onClose }: { item: GalleryItem; onClose: () => void }
     </div>
   );
 }
-
+const heights = [180, 240, 200, 280, 160, 220];
+const getHeight = (index: number) => heights[index % heights.length];
 // ═══════════════════════════════════════════════════════════════════════════════
 // GALLERY SECTION — 3 tabs: Pending Requests / CoE Galleries / Portal Gallery
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -1056,10 +1066,13 @@ function PendingGalleryRequests() {
         <Empty message="No pending gallery requests. All clear!" />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-          {items.map((item) => (
+          {items.map((item ,index) => (
             <div key={item.id} className="bg-white rounded-2xl border border-amber-200 shadow-sm overflow-hidden flex flex-col">
               {/* Thumbnail */}
-              <div className="relative w-full h-48 bg-gray-100">
+              <div
+  className="relative w-full bg-gray-100"
+  style={{ height: `${getHeight(index)}px` }}
+>
                 {item.type === "image" ? (
                   <SafeImage src={item.fileUrl} alt={item.title} className="w-full h-full object-cover" />
                 ) : item.type === "video" ? (
@@ -1103,88 +1116,146 @@ function PendingGalleryRequests() {
 // ─── CoE Galleries (PRIVATE + PENDING) ───────────────────────────────────────
 function CoeGalleries() {
   const [items, setItems] = useState<GalleryItem[]>([]);
+  const [coes, setCoes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCoe, setSelectedCoe] = useState<string>("all");
 
+  // 🔥 load gallery
   const load = () => {
     setLoading(true);
-    // ✅ new endpoint
-    api.get("/gallery/admin/coe-galleries").then((r) => setItems(r.data)).finally(() => setLoading(false));
+    api
+      .get("/gallery/admin/coe-galleries")
+      .then((r) => setItems(r.data))
+      .finally(() => setLoading(false));
   };
-  useEffect(load, []);
 
-  // Unique CoEs from items
-  const coes = Array.from(
-    new Map(items.map((i) => [
-      i.coeProfile?.organization?.name,
-      { name: i.coeProfile?.organization?.name ?? "", logo: i.coeProfile?.organization?.logo }
-    ])).entries()
-  );
+  // 🔥 load CoEs (CORRECT SOURCE)
+  const loadCoes = () => {
+    api
+      .get("/coes")
+      .then((res) => setCoes(res.data))
+      .catch((err) => console.error("❌ Failed to fetch COEs", err));
+  };
 
-  const filtered = selectedCoe === "all"
-    ? items
-    : items.filter((i) => i.coeProfile?.organization?.name === selectedCoe);
+  useEffect(() => {
+    load();
+    loadCoes();
+  }, []);
+
+  // 🔥 filtering (FIXED)
+  const filtered =
+    selectedCoe === "all"
+      ? items
+      : items.filter(
+          (i) => i.coeProfile?.organization?.id === selectedCoe
+        );
 
   if (loading) return <Skeleton />;
+
   return (
     <div className="space-y-4">
-      {/* CoE filter */}
-      <div className="flex gap-2 flex-wrap">
-        <button onClick={() => setSelectedCoe("all")}
-          className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
-            selectedCoe === "all" ? "bg-gray-900 text-white border-gray-900" : "bg-white border-gray-200 text-gray-600"
-          }`}>
-          All CoEs ({items.length})
-        </button>
-        {coes.map(([name, info]) => (
-          <button key={name} onClick={() => setSelectedCoe(name ?? "")}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
-              selectedCoe === name ? "bg-gray-900 text-white border-gray-900" : "bg-white border-gray-200 text-gray-600"
-            }`}>
-            {info.logo && <SafeImage src={info.logo} className="w-4 h-4 rounded-full" />}
-            {name}
-          </button>
-        ))}
+      {/* ✅ ONLY dropdown (clean UI) */}
+      <div className="flex items-center gap-3">
+        <select
+          value={selectedCoe}
+          onChange={(e) => setSelectedCoe(e.target.value)}
+          className="px-3 py-2 border rounded-lg text-sm"
+        >
+          <option value="all">All CoEs ({items.length})</option>
+          {coes.map((coe) => (
+            <option key={coe.id} value={coe.id}>
+              {coe.name}
+            </option>
+          ))}
+        </select>
       </div>
 
       {/* Legend */}
       <div className="flex gap-3 text-xs text-gray-500">
-        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-gray-400 inline-block" /> Private</span>
-        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-400 inline-block" /> Pending Approval</span>
-        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" /> On Portal</span>
+        <span className="flex items-center gap-1">
+          <span className="w-2 h-2 rounded-full bg-gray-400 inline-block" />
+          Private
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="w-2 h-2 rounded-full bg-amber-400 inline-block" />
+          Pending
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />
+          Portal
+        </span>
       </div>
 
       {filtered.length === 0 ? (
         <Empty message="No CoE gallery items found." />
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-          {filtered.map((item) => (
-            <div key={item.id} className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col">
-              <div className="relative w-full h-48 bg-gray-100">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          {filtered.map((item, index) => (
+            <div
+              key={item.id}
+              className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col"
+            >
+              {/* 🔥 Dynamic height */}
+              <div
+                className="relative w-full bg-gray-100"
+                style={{ height: `${getHeight(index)}px` }}
+              >
                 {item.type === "image" ? (
-                  <SafeImage src={item.fileUrl} alt={item.title} className="w-full h-full object-cover" />
+                  <SafeImage
+                    src={item.fileUrl}
+                    className="w-full h-full object-cover"
+                  />
                 ) : item.type === "video" ? (
-                  <video src={item.fileUrl} className="w-full h-full object-cover" muted playsInline />
+                  <video
+                    src={item.fileUrl}
+                    className="w-full h-full object-cover"
+                    muted
+                  />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center text-4xl">📄</div>
+                  <div className="w-full h-full flex items-center justify-center text-4xl">
+                    📄
+                  </div>
                 )}
+
                 {/* Status badge */}
-                <span className={`absolute top-2 right-2 text-[10px] font-semibold px-2 py-0.5 rounded-full text-white ${
-                  item.status === "APPROVED" ? "bg-emerald-500" :
-                  item.status === "PENDING_APPROVAL" ? "bg-amber-400" : "bg-gray-400"
-                }`}>
-                  {item.status === "APPROVED" ? "Portal" : item.status === "PENDING_APPROVAL" ? "Pending" : "Private"}
+                <span
+                  className={`absolute top-2 right-2 text-[10px] font-semibold px-2 py-0.5 rounded-full text-white ${
+                    item.status === "APPROVED"
+                      ? "bg-emerald-500"
+                      : item.status === "PENDING_APPROVAL"
+                      ? "bg-amber-400"
+                      : "bg-gray-400"
+                  }`}
+                >
+                  {item.status === "APPROVED"
+                    ? "Portal"
+                    : item.status === "PENDING_APPROVAL"
+                    ? "Pending"
+                    : "Private"}
                 </span>
               </div>
+
+              {/* Content */}
               <div className="p-3">
-                <p className="text-sm font-medium text-gray-800 truncate">{item.title}</p>
+                <p className="text-sm font-medium text-gray-800 truncate">
+                  {item.title}
+                </p>
+
                 <div className="flex items-center gap-1.5 mt-1">
                   {item.coeProfile?.organization?.logo && (
-                    <SafeImage src={item.coeProfile.organization.logo} className="w-4 h-4 rounded-full" />
+                    <SafeImage
+                      src={item.coeProfile.organization.logo}
+                      className="w-4 h-4 rounded-full"
+                    />
                   )}
-                  <span className="text-[10px] text-gray-500">{item.coeProfile?.organization?.name}</span>
+                  <span className="text-[10px] text-gray-500">
+                    {item.coeProfile?.organization?.name}
+                  </span>
                 </div>
-                <p className="text-[10px] text-gray-400 mt-1">{format(new Date(item.uploadedAt), "dd MMM yyyy")}</p>
+
+                <p className="text-[10px] text-gray-400 mt-1">
+                  {format(new Date(item.uploadedAt), "dd MMM yyyy")}
+                </p>
               </div>
             </div>
           ))}
@@ -1193,6 +1264,7 @@ function CoeGalleries() {
     </div>
   );
 }
+
 
 // ─── Portal Gallery (APPROVED only) ──────────────────────────────────────────
 function PortalGallery() {
@@ -1242,57 +1314,74 @@ function PortalGallery() {
         {filtered.length === 0 ? (
           <Empty message="No approved portal items yet." />
         ) : (
-<div className="grid grid-cols-3 gap-4">            {filtered.map((item) => (
-              <div key={item.id} className="group relative bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col">
-                <div className="relative w-full h-48 bg-gray-100">
-                  {item.type === "image" ? (
-                    <SafeImage src={item.fileUrl} alt={item.title} className="w-full h-full object-cover" />
-                  ) : item.type === "video" ? (
-                    <video src={item.fileUrl} className="w-full h-full object-cover" muted playsInline />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-4xl">📄</div>
-                  )}
-               
-
-{/* Replace the <div className="p-3"> card footer with this: */}
-<div className="p-3">
-  <p className="text-sm font-medium text-gray-700 truncate">{item.title}</p>
-  <div className="flex items-center gap-1.5 mt-1">
-    {item.coeProfile?.organization?.logo && (
-      <SafeImage src={item.coeProfile.organization.logo} className="w-4 h-4 rounded-full" />
-    )}
-    <span className="text-[10px] text-gray-500 truncate">{item.coeProfile?.organization?.name}</span>
-  </div>
-</div>
-
-{/* Always-visible action bar */}
-<div className="flex gap-2 px-3 pb-3 pt-0 border-t border-gray-100 mt-1">
-  <button
-    onClick={() => setViewing(item)}
-    className="flex-1 text-xs py-1.5 rounded-lg bg-gray-50 border border-gray-200 text-gray-700 hover:bg-gray-100 transition-colors"
-  >
-    View
-  </button>
-  <button
-    onClick={() => remove(item.id)}
-    className="flex-1 text-xs py-1.5 rounded-lg bg-red-50 border border-red-200 text-red-600 hover:bg-red-100 transition-colors"
-  >
-    Remove
-  </button>
-</div>
-                </div>
-                <div className="p-3">
-                  <p className="text-sm font-medium text-gray-700 truncate">{item.title}</p>
-                  <div className="flex items-center gap-1.5 mt-1">
-                    {item.coeProfile?.organization?.logo && (
-                      <SafeImage src={item.coeProfile.organization.logo} className="w-4 h-4 rounded-full" />
-                    )}
-                    <span className="text-[10px] text-gray-500 truncate">{item.coeProfile?.organization?.name}</span>
-                  </div>
-                </div>
-              </div>
-            ))}
+<div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+  {filtered.map((item, index) => (
+    <div
+      key={item.id}
+      className="group bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col"
+    >
+      {/* ✅ Media */}
+      <div
+        className="relative w-full bg-gray-100"
+        style={{ height: `${getHeight(index)}px` }}
+      >
+        {item.type === "image" ? (
+          <SafeImage
+            src={item.fileUrl}
+            className="w-full h-full object-cover"
+          />
+        ) : item.type === "video" ? (
+          <video
+            src={item.fileUrl}
+            className="w-full h-full object-cover"
+            muted
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center text-4xl">
+            📄
           </div>
+        )}
+      </div>
+
+      {/* ✅ Content */}
+      <div className="p-3 flex flex-col gap-2">
+        <p className="text-sm font-medium text-gray-700 truncate">
+          {item.title}
+        </p>
+
+        <div className="flex items-center gap-1.5">
+          {item.coeProfile?.organization?.logo && (
+            <SafeImage
+              src={item.coeProfile.organization.logo}
+              className="w-4 h-4 rounded-full"
+            />
+          )}
+          <span className="text-[10px] text-gray-500 truncate">
+            {item.coeProfile?.organization?.name}
+          </span>
+        </div>
+      </div>
+
+      {/* ✅ Actions (OUTSIDE media) */}
+      <div className="flex gap-2 px-3 pb-3 border-t border-gray-100">
+        <button
+          onClick={() => setViewing(item)}
+          className="flex-1 text-xs py-1.5 rounded-lg bg-gray-50 border border-gray-200 hover:bg-gray-100 transition-colors"
+        >
+          View
+        </button>
+
+        <button
+          onClick={() => remove(item.id)}
+          className="flex-1 text-xs py-1.5 rounded-lg bg-red-50 border border-red-200 text-red-600 hover:bg-red-100 transition-colors"
+        >
+          Remove
+        </button>
+      </div>
+    </div>
+  ))}
+</div>
+
         )}
       </div>
     </>
