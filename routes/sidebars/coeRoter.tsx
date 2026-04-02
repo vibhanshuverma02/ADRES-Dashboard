@@ -29,12 +29,7 @@ export const CoEManagerMenu: MenuItemType[] = [
     id: uuid(),
     title: "Manage Resource Hub",
     icon: <IconLibrary size={20} strokeWidth={2.5} />,
-    children: [
-      { id: uuid(), name: "New Request", link: "/coemanager/Dashboard/Resource?section=Pending" },
-      { id: uuid(), name: "Published",   link: "/coemanager/Dashboard/Resource?section=Published" },
-      { id: uuid(), name: "Processed",   link: "/coemanager/Dashboard/Resource?section=Processed" },
-      { id: uuid(), name: "Rejected",    link: "/coemanager/Dashboard/Resource?section=Rejected" },
-    ],
+    link: "/coemanager/Dashboard/Resource?section=Pending" ,
   },
   // {
   //   id: uuid(),

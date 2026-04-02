@@ -848,9 +848,29 @@ function PastEvents() {
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    api.get("/events/public/past").then((r) => setEvents(r.data)).finally(() => setLoading(false));
-  }, []);
+  const load = () => {
+    setLoading(true);
+    // Use admin endpoint so we get all data + can delete
+    api.get("/events/approved")
+      .then((r) => {
+        const past = r.data.filter((e: Event) => new Date(e.date) < new Date());
+        // Sort newest first
+        past.sort((a: Event, b: Event) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        setEvents(past);
+      })
+      .finally(() => setLoading(false));
+  };
+  useEffect(load, []);
+
+  async function deleteEvent(id: string) {
+    if (!confirm("Permanently delete this past event and all its content?")) return;
+    try {
+      await api.delete(`/events/admin/${id}`);
+      load();
+    } catch (err: any) {
+      alert(err?.response?.data?.message ?? "Delete failed");
+    }
+  }
 
   if (loading) return <Skeleton />;
   return (
@@ -878,19 +898,28 @@ function PastEvents() {
                 {e.location && ` · ${e.location}`}
               </p>
             </div>
+            {/* ← NEW delete button */}
+            <button
+              onClick={() => deleteEvent(e.id)}
+              className="text-xs px-3 py-1.5 border border-red-200 rounded-lg text-red-500 hover:bg-red-50 transition-colors self-start"
+            >
+              🗑️ Delete
+            </button>
           </div>
-          {(e.photos?.length ?? 0) > 0 && (
-            <div className="flex gap-3 flex-wrap">
-              {e.photos?.map((p) => (
-                <SafeImage key={p.id} src={p.fileUrl} className="w-24 h-20 rounded-lg object-cover border border-gray-200" />
-              ))}
-            </div>
-          )}
+        {(e.photos?.length ?? 0) > 0 && (
+  <div className={`grid gap-3 ${(e.photos?.length ?? 1) >= 2 ? "grid-cols-2" : "grid-cols-1"}`}>
+    {e.photos?.map((p) => (
+      <div key={p.id} className="rounded-xl overflow-hidden border border-gray-200 aspect-video">
+        <SafeImage src={p.fileUrl} className="w-full h-full object-cover" />
+      </div>
+    ))}
+  </div>
+)}
           {e.abstract && (
-            <div className="flex items-center justify-between bg-gray-50 rounded-xl border border-gray-200 p-3">
-              <p className="text-sm font-medium text-gray-800">📄 {e.abstract.title}</p>
+           <div className="flex items-center justify-between bg-gray-50 rounded-xl border border-gray-200 p-3">
+    <p className="text-sm font-medium text-gray-800 truncate">📄 {e.abstract.title}</p>
               <a href={e.abstract.fileUrl} target="_blank" rel="noreferrer"
-                className="text-xs px-3 py-1.5 border border-gray-200 rounded-lg text-gray-600 hover:bg-white transition-colors">
+                  className="shrink-0 ml-3 text-xs px-3 py-1.5 border border-gray-200 rounded-lg text-gray-600 hover:bg-white transition-colors">
                 View Abstract
               </a>
             </div>
@@ -1213,8 +1242,7 @@ function PortalGallery() {
         {filtered.length === 0 ? (
           <Empty message="No approved portal items yet." />
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-            {filtered.map((item) => (
+<div className="grid grid-cols-3 gap-4">            {filtered.map((item) => (
               <div key={item.id} className="group relative bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col">
                 <div className="relative w-full h-48 bg-gray-100">
                   {item.type === "image" ? (
@@ -1224,17 +1252,34 @@ function PortalGallery() {
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-4xl">📄</div>
                   )}
-                  {/* Hover overlay */}
-                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                    <button onClick={() => setViewing(item)}
-                      className="text-xs px-2 py-1 bg-white text-gray-800 rounded-lg hover:bg-gray-100 transition-colors">
-                      👁 View
-                    </button>
-                    <button onClick={() => remove(item.id)}
-                      className="text-xs px-2 py-1 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">
-                      🗑 Remove
-                    </button>
-                  </div>
+               
+
+{/* Replace the <div className="p-3"> card footer with this: */}
+<div className="p-3">
+  <p className="text-sm font-medium text-gray-700 truncate">{item.title}</p>
+  <div className="flex items-center gap-1.5 mt-1">
+    {item.coeProfile?.organization?.logo && (
+      <SafeImage src={item.coeProfile.organization.logo} className="w-4 h-4 rounded-full" />
+    )}
+    <span className="text-[10px] text-gray-500 truncate">{item.coeProfile?.organization?.name}</span>
+  </div>
+</div>
+
+{/* Always-visible action bar */}
+<div className="flex gap-2 px-3 pb-3 pt-0 border-t border-gray-100 mt-1">
+  <button
+    onClick={() => setViewing(item)}
+    className="flex-1 text-xs py-1.5 rounded-lg bg-gray-50 border border-gray-200 text-gray-700 hover:bg-gray-100 transition-colors"
+  >
+    View
+  </button>
+  <button
+    onClick={() => remove(item.id)}
+    className="flex-1 text-xs py-1.5 rounded-lg bg-red-50 border border-red-200 text-red-600 hover:bg-red-100 transition-colors"
+  >
+    Remove
+  </button>
+</div>
                 </div>
                 <div className="p-3">
                   <p className="text-sm font-medium text-gray-700 truncate">{item.title}</p>

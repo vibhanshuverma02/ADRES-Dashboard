@@ -76,19 +76,32 @@ function UpcomingEvents() {
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    api.get("/events/my").then((r) => {
-      setEvents(r.data.filter((e: Event) => !isPast(new Date(e.date))));
-    }).finally(() => setLoading(false));
-  }, []);
+  const load = () => {
+    setLoading(true);
+    api.get("/events/my")
+      .then((r) => setEvents(r.data.filter((e: Event) => !isPast(new Date(e.date)))))
+      .finally(() => setLoading(false));
+  };
+  useEffect(load, []);
+
+  async function deleteEvent(id: string) {
+    if (!confirm("Delete this event?")) return;
+    try {
+      await api.delete(`/events/my/${id}`);
+      load();
+    } catch (err: any) {
+      alert(err?.response?.data?.message ?? "Delete failed");
+    }
+  }
 
   if (loading) return <Skeleton />;
   return (
     <div className="space-y-4">
       <SectionHeader title="Upcoming Events" count={events.length} />
-      {events.length === 0 ? (
-        <Empty message="No upcoming events. Use 'Request Event' to submit one." />
-      ) : events.map((e) => <EventCard key={e.id} event={e} />)}
+      {events.length === 0
+        ? <Empty message="No upcoming events. Use 'Request Event' to submit one." />
+        : events.map((e) => <EventCard key={e.id} event={e} onDelete={() => deleteEvent(e.id)} />)
+      }
     </div>
   );
 }
@@ -239,7 +252,15 @@ function PastEventCard({ event, onRefresh }: { event: Event; onRefresh: () => vo
     await api.delete(`/events/my/${event.id}/abstract`);
     onRefresh();
   }
-
+async function deleteEvent() {
+    if (!confirm("Delete this event and all its photos/abstract?")) return;
+    try {
+      await api.delete(`/events/my/${event.id}`);
+      onRefresh();
+    } catch (err: any) {
+      alert(err?.response?.data?.message ?? "Delete failed");
+    }
+  }
   return (
     <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 space-y-4">
       {/* Header */}
@@ -254,36 +275,51 @@ function PastEventCard({ event, onRefresh }: { event: Event; onRefresh: () => vo
         <Badge
           label={event.category ?? "MINOR"}
           color={event.category === "MAJOR" ? "bg-amber-100 text-amber-700" : "bg-blue-50 text-blue-600"}
-        />
+     
+     />
+     {/* ← NEW */}
+          <button
+            onClick={deleteEvent}
+            className="text-xs px-3 py-1.5 border border-red-200 rounded-lg text-red-500 hover:bg-red-50 transition-colors"
+          >
+            Delete event
+          </button>
       </div>
 
       {/* Photos */}
-      <div>
-        <p className="text-xs font-semibold text-gray-600 mb-2">
-          📷 Event Photos ({event.photos?.length ?? 0}/2)
-        </p>
-        <div className="flex gap-3 flex-wrap">
-          {event.photos?.map((p) => (
-            <div key={p.id} className="relative group w-24 h-24 rounded-lg overflow-hidden border border-gray-200">
-              {/* ✅ presigned URL — valid when fetched, show graceful fallback on error */}
-              <SafeImage src={p.fileUrl} className="w-full h-full object-cover" />
-              <button onClick={() => removePhoto(p.id)}
-                className="absolute inset-0 bg-black/50 text-white text-xs opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                Remove
-              </button>
-            </div>
-          ))}
-          {(event.photos?.length ?? 0) < 2 && (
-            <button onClick={() => photoRef.current?.click()} disabled={busy}
-              className="w-24 h-24 rounded-lg border-2 border-dashed border-gray-300 flex flex-col items-center justify-center text-gray-400 hover:border-emerald-400 hover:text-emerald-500 transition-colors text-xs gap-1">
-              <span className="text-2xl">+</span>
-              <span>Photo</span>
-            </button>
-          )}
-        </div>
-        <input ref={photoRef} type="file" accept="image/*" className="hidden"
-          onChange={(e) => e.target.files?.[0] && uploadPhoto(e.target.files[0])} />
+      {/* Photos */}
+<div>
+  <p className="text-xs font-semibold text-gray-600 mb-2">
+    📷 Event Photos ({event.photos?.length ?? 0}/2)
+  </p>
+
+  {/* ← grid-cols-2 so 2 photos always sit side by side */}
+  <div className={`grid gap-3 ${(event.photos?.length ?? 0) === 2 ? "grid-cols-2" : "grid-cols-1"}`}>
+    {event.photos?.map((p) => (
+      <div key={p.id} className="relative group rounded-xl overflow-hidden border border-gray-200 aspect-video">
+        <SafeImage src={p.fileUrl} className="w-full h-full object-cover" />
+        <button
+          onClick={() => removePhoto(p.id)}
+          className="absolute inset-0 bg-black/50 text-white text-xs opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+        >
+          Remove
+        </button>
       </div>
+    ))}
+    {(event.photos?.length ?? 0) < 2 && (
+      <button
+        onClick={() => photoRef.current?.click()}
+        disabled={busy}
+        className="rounded-xl border-2 border-dashed border-gray-300 flex flex-col items-center justify-center text-gray-400 hover:border-emerald-400 hover:text-emerald-500 transition-colors text-xs gap-1 aspect-video"
+      >
+        <span className="text-2xl">+</span>
+        <span>Add Photo</span>
+      </button>
+    )}
+  </div>
+  <input ref={photoRef} type="file" accept="image/*" className="hidden"
+    onChange={(e) => e.target.files?.[0] && uploadPhoto(e.target.files[0])} />
+</div>
 
       {/* Abstract */}
       <div>
@@ -472,8 +508,7 @@ function GalleryManager() {
         <Empty message="No items yet. Upload something!" />
       ) : (
         // ✅ 3-column grid
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-          {filtered.map((item) => (
+<div className="grid grid-cols-3 gap-4">          {filtered.map((item) => (
             <CoEGalleryCard
               key={item.id}
               item={item}
@@ -599,7 +634,7 @@ function SafeImage({ src, alt = "", className = "" }: { src: string; alt?: strin
 }
 
 // ─── shared ───────────────────────────────────────────────────────────────────
-function EventCard({ event }: { event: Event }) {
+function EventCard({ event, onDelete }: { event: Event; onDelete?: () => void }) {
   return (
     <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5">
       <div className="flex items-start justify-between flex-wrap gap-2">
@@ -613,7 +648,7 @@ function EventCard({ event }: { event: Event }) {
         </div>
         <div className="flex flex-col gap-1 items-end">
           <Badge
-            label={event.status}
+            label={event.status ?? "PENDING"}
             color={event.status === "APPROVED" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}
           />
           {event.category && (
@@ -625,6 +660,16 @@ function EventCard({ event }: { event: Event }) {
         </div>
       </div>
       {event.approvedBy && <p className="text-xs text-gray-400 mt-2">Approved by {event.approvedBy}</p>}
+      {onDelete && (
+        <div className="mt-3 pt-3 border-t border-gray-100 flex justify-end">
+          <button
+            onClick={onDelete}
+            className="text-xs px-3 py-1.5 border border-red-200 rounded-lg text-red-500 hover:bg-red-50 transition-colors"
+          >
+            Delete event
+          </button>
+        </div>
+      )}
     </div>
   );
 }

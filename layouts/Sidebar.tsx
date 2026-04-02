@@ -278,7 +278,7 @@ const Sidebar: React.FC<SidebarProps> = ({ hideLogo = false, containerId }) => {
     <div id={containerId} className="sidebar">
       {!hideLogo && (
         <div className="brand-logo">
-          <Link href="/" className="d-none d-md-flex align-items-center gap-2">
+         
             <img
               src={getAssetPath("/images/brand/logo/transparent-Photoroom(2).png")}
               alt="logo"
@@ -286,7 +286,7 @@ const Sidebar: React.FC<SidebarProps> = ({ hideLogo = false, containerId }) => {
             {showMenu && (
               <span className="fw-bold fs-4 site-logo-text">ADRES Dasher</span>
             )}
-          </Link>
+       
         </div>
       )}
 
