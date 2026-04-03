@@ -130,7 +130,7 @@ const Avatar: React.FC<AvatarProps> = (props) => {
           >
             <DasherTippy content={name}>
               <Image
-                src={getAssetPath(src)}
+                src={src}
                 alt={alt}
                 className={`mb-2 mb-lg-0 ${className}`}
               />
@@ -145,7 +145,7 @@ const Avatar: React.FC<AvatarProps> = (props) => {
             }`}
           >
             <Image
-              src={getAssetPath(src)}
+              src={src}
               alt={alt}
               className={`mb-2 mb-lg-0 ${className}`}
             />
@@ -197,7 +197,7 @@ const Ratio: React.FC<RatioProps> = (props) => {
   return (
     <span>
       <Image
-        src={getAssetPath(src)}
+        src={src}
         alt=""
         className={`img-4by3-${size} mb-2 mb-lg-0 ${className}`}
       />
