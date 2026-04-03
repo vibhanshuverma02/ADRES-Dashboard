@@ -1,8 +1,719 @@
+// "use client";
+// import { useEffect, useRef, useState } from "react";
+// import { useSearchParams } from "next/navigation";
+// import api from "helper/api";
+// import { format, isPast, formatDistanceToNow } from "date-fns";
+
+// // ─── types ────────────────────────────────────────────────────────────────────
+// interface Event {
+//   id: string; title: string; date: string; location?: string;
+//   description?: string; category?: string; status: "PENDING" | "APPROVED";
+//   approvedBy?: string;
+//   photos?: { id: string; fileUrl: string }[];
+//   abstract?: { id: string; title: string; fileUrl: string; summary?: string } | null;
+// }
+// interface GalleryItem {
+//   id: string;
+//   title: string;
+//   fileUrl: string;
+//   type: string;
+//   uploadedAt: string;
+//   status: "PRIVATE" | "PENDING_APPROVAL" | "APPROVED";
+//   coeProfile?: {
+//     organization: {
+//       id: string;
+//       name: string;
+//       logo?: string;
+//     };
+//   };
+// }
+// type Section = "upcoming" | "request" | "past" | "gallery";
+
+// function Badge({ label, color }: { label: string; color: string }) {
+//   return <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${color}`}>{label}</span>;
+// }
+
+// export default function CoEEventsGalleryPage() {
+//   const params = useSearchParams();
+//   const section = (params.get("section") ?? "upcoming") as Section;
+//   return (
+//     <div className="min-h-screen bg-gray-50">
+//       <div className="bg-white border-b border-gray-200 px-6 py-5">
+//         <h1 className="text-xl font-bold text-gray-900">Events & Gallery</h1>
+//         <p className="text-sm text-gray-500 mt-0.5">Manage your CoE events and media gallery</p>
+//       </div>
+//       <div className="bg-white border-b border-gray-100 px-6">
+//         <div className="flex gap-1 overflow-x-auto">
+//           {[
+//             { key: "upcoming", label: "📅 Upcoming" },
+//             { key: "request",  label: "➕ Request Event" },
+//             { key: "past",     label: "📁 Past Events" },
+//             { key: "gallery",  label: "🖼️ Gallery" },
+//           ].map(({ key, label }) => (
+//             <a key={key} href={`?section=${key}`}
+//               className={`px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
+//                 section === key ? "border-gray-900 text-gray-900" : "border-transparent text-gray-500 hover:text-gray-700"
+//               }`}>
+//               {label}
+//             </a>
+//           ))}
+//         </div>
+//       </div>
+//       <div className="p-6 max-w-5xl mx-auto space-y-6">
+//         {section === "upcoming" && <UpcomingEvents />}
+//         {section === "request"  && <RequestEventForm />}
+//         {section === "past"     && <PastEvents />}
+//         {section === "gallery"  && <GalleryManager />}
+//       </div>
+//     </div>
+//   );
+// }
+
+// // ═══════════════════════════════════════════════════════════════════════════════
+// // UPCOMING EVENTS
+// // ═══════════════════════════════════════════════════════════════════════════════
+// function UpcomingEvents() {
+//   const [events, setEvents] = useState<Event[]>([]);
+//   const [loading, setLoading] = useState(true);
+
+//   const load = () => {
+//     setLoading(true);
+//     api.get("/events/my")
+//       .then((r) => setEvents(r.data.filter((e: Event) => !isPast(new Date(e.date)))))
+//       .finally(() => setLoading(false));
+//   };
+//   useEffect(load, []);
+
+//   async function deleteEvent(id: string) {
+//     if (!confirm("Delete this event?")) return;
+//     try {
+//       await api.delete(`/events/my/${id}`);
+//       load();
+//     } catch (err: any) {
+//       alert(err?.response?.data?.message ?? "Delete failed");
+//     }
+//   }
+
+//   if (loading) return <Skeleton />;
+//   return (
+//     <div className="space-y-4">
+//       <SectionHeader title="Upcoming Events" count={events.length} />
+//       {events.length === 0
+//         ? <Empty message="No upcoming events. Use 'Request Event' to submit one." />
+//         : events.map((e) => <EventCard key={e.id} event={e} onDelete={() => deleteEvent(e.id)} />)
+//       }
+//     </div>
+//   );
+// }
+
+// // ═══════════════════════════════════════════════════════════════════════════════
+// // REQUEST EVENT FORM
+// // ═══════════════════════════════════════════════════════════════════════════════
+// function RequestEventForm() {
+//   const [form, setForm] = useState({ title: "", date: "", location: "", description: "" });
+//   const [busy, setBusy] = useState(false);
+//   const [success, setSuccess] = useState(false);
+
+//   const minDateTime = new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
+//     .toISOString()
+//     .slice(0, 16);
+
+//   async function handleSubmit(e: React.FormEvent) {
+//     e.preventDefault();
+//     if (!form.date) { alert("Please select a date and time"); return; }
+//     setBusy(true);
+//     try {
+//       await api.post("/events/request", {
+//         ...form,
+//         date: new Date(form.date).toISOString(),
+//       });
+//       setSuccess(true);
+//       setForm({ title: "", date: "", location: "", description: "" });
+//     } catch (err: any) {
+//       alert(err?.response?.data?.message ?? "Failed to submit request");
+//     } finally { setBusy(false); }
+//   }
+
+//   return (
+//     <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+//       <SectionHeader title="Request New Event" />
+//       {success && (
+//         <div className="mb-4 rounded-xl bg-emerald-50 border border-emerald-200 p-4 text-sm text-emerald-700">
+//           ✅ Event request submitted! SuperAdmin will review it shortly.
+//         </div>
+//       )}
+//       <form onSubmit={handleSubmit} className="space-y-4">
+//         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+//           <Field label="Event Title *">
+//             <input required value={form.title}
+//               onChange={(e) => setForm({ ...form, title: e.target.value })}
+//               className="input" placeholder="e.g. Annual Research Summit" />
+//           </Field>
+//           <Field label="Date & Time *">
+//             <input required type="datetime-local" value={form.date}
+//               min={minDateTime} step="60"
+//               onChange={(e) => setForm({ ...form, date: e.target.value })}
+//               className="input" />
+//             {form.date && (
+//               <p className="text-[11px] text-gray-400 mt-1">
+//                 📅 {format(new Date(form.date), "dd MMM yyyy 'at' hh:mm a")}
+//               </p>
+//             )}
+//           </Field>
+//           <Field label="Location">
+//             <input value={form.location}
+//               onChange={(e) => setForm({ ...form, location: e.target.value })}
+//               className="input" placeholder="City / Venue / Online" />
+//           </Field>
+//         </div>
+//         <Field label="Description">
+//           <textarea value={form.description}
+//             onChange={(e) => setForm({ ...form, description: e.target.value })}
+//             rows={3} className="input resize-none"
+//             placeholder="Brief description of the event..." />
+//         </Field>
+//         <button type="submit" disabled={busy}
+//           className="px-6 py-2.5 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-40 transition-colors">
+//           {busy ? "Submitting…" : "Submit Request"}
+//         </button>
+//       </form>
+//     </div>
+//   );
+// }
+
+// // ═══════════════════════════════════════════════════════════════════════════════
+// // PAST EVENTS — attach photos + abstract
+// // ═══════════════════════════════════════════════════════════════════════════════
+// function PastEvents() {
+//   const [events, setEvents] = useState<Event[]>([]);
+//   const [loading, setLoading] = useState(true);
+
+//   const load = () => {
+//     setLoading(true);
+//     // ✅ Backend enriches all fileUrls with fresh presigned URLs on every call
+//     api.get("/events/my/past").then((r) => setEvents(r.data)).finally(() => setLoading(false));
+//   };
+//   useEffect(load, []);
+
+//   if (loading) return <Skeleton />;
+//   return (
+//     <div className="space-y-4">
+//       <SectionHeader title="Past Events" count={events.length} />
+//       {events.length === 0 ? (
+//         <Empty message="No past events yet." />
+//       ) : events.map((e) => <PastEventCard key={e.id} event={e} onRefresh={load} />)}
+//     </div>
+//   );
+// }
+
+// function PastEventCard({ event, onRefresh }: { event: Event; onRefresh: () => void }) {
+//   const photoRef = useRef<HTMLInputElement>(null);
+//   const abstractRef = useRef<HTMLInputElement>(null);
+//   const [abstractTitle, setAbstractTitle] = useState("");
+//   const [abstractSummary, setAbstractSummary] = useState("");
+//   const [busy, setBusy] = useState(false);
+
+//   async function uploadPhoto(file: File) {
+//     setBusy(true);
+//     const fd = new FormData();
+//     fd.append("file", file);
+//     try {
+//       await api.post(`/events/my/${event.id}/photos`, fd);
+//       onRefresh(); // ✅ re-fetch gives fresh presigned URLs
+//     } catch (err: any) {
+//       alert(err?.response?.data?.message ?? "Upload failed");
+//     } finally { setBusy(false); }
+//   }
+
+//   async function removePhoto(photoId: string) {
+//     if (!confirm("Remove this photo?")) return;
+//     await api.delete(`/events/my/photos/${photoId}`);
+//     onRefresh();
+//   }
+
+//   async function uploadAbstract(file: File) {
+//     if (!abstractTitle.trim()) { alert("Please enter a title for the abstract"); return; }
+//     setBusy(true);
+//     const fd = new FormData();
+//     fd.append("file", file);
+//     fd.append("title", abstractTitle);
+//     if (abstractSummary) fd.append("summary", abstractSummary);
+//     try {
+//       await api.post(`/events/my/${event.id}/abstract`, fd);
+//       setAbstractTitle("");
+//       setAbstractSummary("");
+//       onRefresh();
+//     } catch (err) { console.error(err); }
+//     finally { setBusy(false); }
+//   }
+
+//   async function removeAbstract() {
+//     if (!confirm("Remove abstract?")) return;
+//     await api.delete(`/events/my/${event.id}/abstract`);
+//     onRefresh();
+//   }
+// async function deleteEvent() {
+//     if (!confirm("Delete this event and all its photos/abstract?")) return;
+//     try {
+//       await api.delete(`/events/my/${event.id}`);
+//       onRefresh();
+//     } catch (err: any) {
+//       alert(err?.response?.data?.message ?? "Delete failed");
+//     }
+//   }
+//   return (
+//     <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 space-y-4">
+//       {/* Header */}
+//       <div className="flex items-start justify-between flex-wrap gap-2">
+//         <div>
+//           <h3 className="font-semibold text-gray-900">{event.title}</h3>
+//           <p className="text-xs text-gray-400 mt-0.5">
+//             {format(new Date(event.date), "dd MMM yyyy")}
+//             {event.location && ` · ${event.location}`}
+//           </p>
+//         </div>
+//         <Badge
+//           label={event.category ?? "MINOR"}
+//           color={event.category === "MAJOR" ? "bg-amber-100 text-amber-700" : "bg-blue-50 text-blue-600"}
+     
+//      />
+//      {/* ← NEW */}
+//           <button
+//             onClick={deleteEvent}
+//             className="text-xs px-3 py-1.5 border border-red-200 rounded-lg text-red-500 hover:bg-red-50 transition-colors"
+//           >
+//             Delete event
+//           </button>
+//       </div>
+
+//       {/* Photos */}
+//       {/* Photos */}
+// <div>
+//   <p className="text-xs font-semibold text-gray-600 mb-2">
+//     📷 Event Photos ({event.photos?.length ?? 0}/2)
+//   </p>
+
+//   {/* ← grid-cols-2 so 2 photos always sit side by side */}
+//   <div className={`grid gap-3 ${(event.photos?.length ?? 0) === 2 ? "grid-cols-2" : "grid-cols-1"}`}>
+//     {event.photos?.map((p) => (
+//       <div key={p.id} className="relative group rounded-xl overflow-hidden border border-gray-200 aspect-video">
+//         <SafeImage src={p.fileUrl} className="w-full h-full object-cover" />
+//         <button
+//           onClick={() => removePhoto(p.id)}
+//           className="absolute inset-0 bg-black/50 text-white text-xs opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+//         >
+//           Remove
+//         </button>
+//       </div>
+//     ))}
+//     {(event.photos?.length ?? 0) < 2 && (
+//       <button
+//         onClick={() => photoRef.current?.click()}
+//         disabled={busy}
+//         className="rounded-xl border-2 border-dashed border-gray-300 flex flex-col items-center justify-center text-gray-400 hover:border-emerald-400 hover:text-emerald-500 transition-colors text-xs gap-1 aspect-video"
+//       >
+//         <span className="text-2xl">+</span>
+//         <span>Add Photo</span>
+//       </button>
+//     )}
+//   </div>
+//   <input ref={photoRef} type="file" accept="image/*" className="hidden"
+//     onChange={(e) => e.target.files?.[0] && uploadPhoto(e.target.files[0])} />
+// </div>
+
+//       {/* Abstract */}
+//       <div>
+//         <p className="text-xs font-semibold text-gray-600 mb-2">📄 Abstract / Report</p>
+//         {event.abstract ? (
+//           <div className="flex items-center justify-between bg-gray-50 rounded-xl border border-gray-200 p-3">
+//             <div>
+//               <p className="text-sm font-medium text-gray-800">{event.abstract.title}</p>
+//               {event.abstract.summary && (
+//                 <p className="text-xs text-gray-500 mt-0.5">{event.abstract.summary}</p>
+//               )}
+//             </div>
+//             <div className="flex gap-2 shrink-0 ml-3">
+//               {/* ✅ presigned URL — opens doc in new tab */}
+//               <a href={event.abstract.fileUrl} target="_blank" rel="noreferrer"
+//                 className="text-xs px-3 py-1.5 border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors">
+//                 View
+//               </a>
+//               <button onClick={removeAbstract}
+//                 className="text-xs px-3 py-1.5 border border-red-200 rounded-lg text-red-500 hover:bg-red-50 transition-colors">
+//                 Remove
+//               </button>
+//             </div>
+//           </div>
+//         ) : (
+//           <div className="space-y-2">
+//             <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+//               <input value={abstractTitle} onChange={(e) => setAbstractTitle(e.target.value)}
+//                 placeholder="Abstract title *" className="input text-sm" />
+//               <input value={abstractSummary} onChange={(e) => setAbstractSummary(e.target.value)}
+//                 placeholder="Short summary (optional)" className="input text-sm" />
+//             </div>
+//             <button onClick={() => abstractRef.current?.click()} disabled={busy}
+//               className="text-sm px-4 py-2 border-2 border-dashed border-gray-300 rounded-xl text-gray-500 hover:border-emerald-400 hover:text-emerald-600 transition-colors w-full">
+//               + Attach Abstract (PDF / Word)
+//             </button>
+//             <input ref={abstractRef} type="file" accept=".pdf,.doc,.docx" className="hidden"
+//               onChange={(e) => e.target.files?.[0] && uploadAbstract(e.target.files[0])} />
+//           </div>
+//         )}
+//       </div>
+//     </div>
+//   );
+// }
+
+// // ═══════════════════════════════════════════════════════════════════════════════
+// // GALLERY MANAGER
+// // ═══════════════════════════════════════════════════════════════════════════════
+// // ═══════════════════════════════════════════════════════════════════════════════
+// // GALLERY MANAGER — CoE
+// // Grid layout: 3 per row, max 10 items, request to portal, delete
+// // ═══════════════════════════════════════════════════════════════════════════════
+// function GalleryManager() {
+//   const [items, setItems] = useState<GalleryItem[]>([]);
+//   const [loading, setLoading] = useState(true);
+//   const [activeType, setActiveType] = useState<string>("all");
+//   const [title, setTitle] = useState("");
+//   const [type, setType] = useState<"image" | "video" | "doc">("image");
+//   const fileRef = useRef<HTMLInputElement>(null);
+//   const [busy, setBusy] = useState(false);
+//   const [requesting, setRequesting] = useState<string | null>(null);
+
+//   const load = () => {
+//     setLoading(true);
+//     api.get("/gallery/my").then((r) => setItems(r.data)).finally(() => setLoading(false));
+//   };
+//   useEffect(load, []);
+
+//   async function upload(file: File) {
+//     if (!title.trim()) { alert("Please enter a title first"); return; }
+//     if (items.length >= 10) { alert("Maximum 10 gallery items allowed"); return; }
+//     setBusy(true);
+//     const fd = new FormData();
+//     fd.append("file", file);
+//     fd.append("title", title);
+//     fd.append("type", type);
+//     try {
+//       await api.post("/gallery/my", fd);
+//       setTitle("");
+//       load();
+//     } catch (err: any) {
+//       alert(err?.response?.data?.message ?? "Upload failed");
+//     } finally { setBusy(false); }
+//   }
+
+//   async function remove(id: string) {
+//     if (!confirm("Delete this item?")) return;
+//     try {
+//       await api.delete(`/gallery/my/${id}`);
+//       load();
+//     } catch (err: any) {
+//       alert(err?.response?.data?.message ?? "Delete failed");
+//     }
+//   }
+
+//   async function requestToPortal(id: string) {
+//     setRequesting(id);
+//     try {
+//       await api.post(`/gallery/my/${id}/request-portal`);
+//       load();
+//     } catch (err: any) {
+//       alert(err?.response?.data?.message ?? "Request failed");
+//     } finally { setRequesting(null); }
+//   }
+
+//   async function cancelRequest(id: string) {
+//     setRequesting(id);
+//     try {
+//       await api.post(`/gallery/my/${id}/cancel-request`);
+//       load();
+//     } catch (err: any) {
+//       alert(err?.response?.data?.message ?? "Cancel failed");
+//     } finally { setRequesting(null); }
+//   }
+
+//   const filtered = activeType === "all" ? items : items.filter((i) => i.type === activeType);
+//   const accept = type === "image" ? "image/*" : type === "video" ? "video/*" : ".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx";
+
+//   if (loading) return <Skeleton />;
+
+//   return (
+//     <div className="space-y-5">
+//       {/* Upload panel */}
+//       <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5">
+//         <div className="flex items-center justify-between mb-4">
+//           <SectionHeader title="My Gallery" />
+//           <span className={`text-xs font-semibold px-2 py-1 rounded-full ${
+//             items.length >= 10 ? "bg-red-100 text-red-600" : "bg-gray-100 text-gray-600"
+//           }`}>
+//             {items.length}/10 items
+//           </span>
+//         </div>
+
+//         {items.length < 10 && (
+//           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+//             <input
+//               value={title}
+//               onChange={(e) => setTitle(e.target.value)}
+//               placeholder="Item title *"
+//               className="input"
+//             />
+//             <select value={type} onChange={(e) => setType(e.target.value as any)} className="input">
+//               <option value="image">🖼️ Image</option>
+//               <option value="video">🎬 Video</option>
+//               <option value="doc">📄 Document</option>
+//             </select>
+//             <button
+//               onClick={() => fileRef.current?.click()}
+//               disabled={busy}
+//               className="px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-40 transition-colors"
+//             >
+//               {busy ? "Uploading…" : "Choose & Upload"}
+//             </button>
+//           </div>
+//         )}
+//         <input ref={fileRef} type="file" accept={accept} className="hidden"
+//           onChange={(e) => e.target.files?.[0] && upload(e.target.files[0])} />
+
+//         {items.length >= 10 && (
+//           <p className="text-sm text-red-500 mt-2">
+//             Maximum limit reached. Delete an item to upload more.
+//           </p>
+//         )}
+//       </div>
+
+//       {/* Filter tabs */}
+//       <div className="flex gap-2 flex-wrap">
+//         {["all", "image", "video", "doc"].map((t) => (
+//           <button key={t} onClick={() => setActiveType(t)}
+//             className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+//               activeType === t ? "bg-gray-900 text-white" : "bg-white border border-gray-200 text-gray-600 hover:bg-gray-50"
+//             }`}>
+//             {t === "all" ? "All" : t === "image" ? "🖼️ Images" : t === "video" ? "🎬 Videos" : "📄 Docs"}
+//           </button>
+//         ))}
+//       </div>
+
+//       {/* Legend */}
+//       <div className="flex gap-3 text-xs text-gray-500">
+//         <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-gray-400 inline-block" /> Private</span>
+//         <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-400 inline-block" /> Pending Approval</span>
+//         <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" /> On Portal</span>
+//       </div>
+
+//       {filtered.length === 0 ? (
+//         <Empty message="No items yet. Upload something!" />
+//       ) : (
+//         // ✅ 3-column grid
+// <div className="grid grid-cols-3 gap-4">          {filtered.map((item) => (
+//             <CoEGalleryCard
+//               key={item.id}
+//               item={item}
+//               onDelete={() => remove(item.id)}
+//               onRequestPortal={() => requestToPortal(item.id)}
+//               onCancelRequest={() => cancelRequest(item.id)}
+//               isRequesting={requesting === item.id}
+//             />
+//           ))}
+//         </div>
+//       )}
+//     </div>
+//   );
+// }
+
+// // ─── CoE Gallery Card ─────────────────────────────────────────────────────────
+// function CoEGalleryCard({
+//   item,
+//   onDelete,
+//   onRequestPortal,
+//   onCancelRequest,
+//   isRequesting,
+// }: {
+//   item: GalleryItem;
+//   onDelete: () => void;
+//   onRequestPortal: () => void;
+//   onCancelRequest: () => void;
+//   isRequesting: boolean;
+// }) {
+//   const statusColor =
+//     item.status === "APPROVED" ? "bg-emerald-500" :
+//     item.status === "PENDING_APPROVAL" ? "bg-amber-400" : "bg-gray-400";
+
+//   const statusLabel =
+//     item.status === "APPROVED" ? "On Portal" :
+//     item.status === "PENDING_APPROVAL" ? "Pending" : "Private";
+
+//   return (
+//     <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col">
+//       {/* Thumbnail */}
+//       <div className="relative w-full h-48 bg-gray-100">
+//         {item.type === "image" ? (
+//           <SafeImage src={item.fileUrl} alt={item.title} className="w-full h-full object-cover" />
+//         ) : item.type === "video" ? (
+//           <video src={item.fileUrl} className="w-full h-full object-cover" muted playsInline />
+//         ) : (
+//           <div className="w-full h-full flex flex-col items-center justify-center text-gray-400 gap-2">
+//             <span className="text-4xl">📄</span>
+//             <span className="text-xs">Document</span>
+//           </div>
+//         )}
+//         {/* Status badge */}
+//         <span className={`absolute top-2 right-2 text-[10px] font-semibold px-2 py-0.5 rounded-full text-white ${statusColor}`}>
+//           {statusLabel}
+//         </span>
+//       </div>
+
+//       {/* Info */}
+//       <div className="p-3 flex-1 flex flex-col gap-2">
+//         <p className="text-sm font-medium text-gray-800 truncate">{item.title}</p>
+//         <p className="text-[10px] text-gray-400">
+//           {new Date(item.uploadedAt).toLocaleDateString()}
+//         </p>
+
+//         {/* Actions */}
+//         <div className="flex gap-2 mt-auto flex-wrap">
+//           {/* View */}
+//           <a
+//             href={item.fileUrl}
+//             target="_blank"
+//             rel="noreferrer"
+//             className="text-xs px-3 py-1.5 border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors"
+//           >
+//             View
+//           </a>
+
+//           {/* Request / Cancel portal */}
+//           {item.status === "PRIVATE" && (
+//             <button
+//               onClick={onRequestPortal}
+//               disabled={isRequesting}
+//               className="text-xs px-3 py-1.5 border border-emerald-200 rounded-lg text-emerald-600 hover:bg-emerald-50 transition-colors disabled:opacity-40"
+//             >
+//               {isRequesting ? "…" : "→ Request Portal"}
+//             </button>
+//           )}
+//           {item.status === "PENDING_APPROVAL" && (
+//             <button
+//               onClick={onCancelRequest}
+//               disabled={isRequesting}
+//               className="text-xs px-3 py-1.5 border border-amber-200 rounded-lg text-amber-600 hover:bg-amber-50 transition-colors disabled:opacity-40"
+//             >
+//               {isRequesting ? "…" : "✕ Cancel Request"}
+//             </button>
+//           )}
+
+//           {/* Delete — not allowed if approved */}
+//           {item.status !== "APPROVED" && (
+//             <button
+//               onClick={onDelete}
+//               className="text-xs px-3 py-1.5 border border-red-200 rounded-lg text-red-500 hover:bg-red-50 transition-colors ml-auto"
+//             >
+//               Delete
+//             </button>
+//           )}
+//         </div>
+//       </div>
+//     </div>
+//   );
+// }
+
+// // ─── SafeImage — graceful fallback if a presigned URL has expired ─────────────
+// function SafeImage({ src, alt = "", className = "" }: { src: string; alt?: string; className?: string }) {
+//   const [errored, setErrored] = useState(false);
+//   if (errored) {
+//     return (
+//       <div className={`bg-gray-100 flex items-center justify-center text-gray-300 text-xs ${className}`}>
+//         —
+//       </div>
+//     );
+//   }
+//   return <img src={src} alt={alt} className={className} onError={() => setErrored(true)} />;
+// }
+
+// // ─── shared ───────────────────────────────────────────────────────────────────
+// function EventCard({ event, onDelete }: { event: Event; onDelete?: () => void }) {
+//   return (
+//     <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5">
+//       <div className="flex items-start justify-between flex-wrap gap-2">
+//         <div>
+//           <h3 className="font-semibold text-gray-900">{event.title}</h3>
+//           <p className="text-xs text-gray-400 mt-0.5">
+//             {format(new Date(event.date), "dd MMM yyyy, HH:mm")}
+//             {event.location && ` · ${event.location}`}
+//           </p>
+//           {event.description && <p className="text-sm text-gray-600 mt-2">{event.description}</p>}
+//         </div>
+//         <div className="flex flex-col gap-1 items-end">
+//           <Badge
+//             label={event.status ?? "PENDING"}
+//             color={event.status === "APPROVED" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}
+//           />
+//           {event.category && (
+//             <Badge
+//               label={event.category}
+//               color={event.category === "MAJOR" ? "bg-purple-100 text-purple-700" : "bg-blue-50 text-blue-600"}
+//             />
+//           )}
+//         </div>
+//       </div>
+//       {event.approvedBy && <p className="text-xs text-gray-400 mt-2">Approved by {event.approvedBy}</p>}
+//       {onDelete && (
+//         <div className="mt-3 pt-3 border-t border-gray-100 flex justify-end">
+//           <button
+//             onClick={onDelete}
+//             className="text-xs px-3 py-1.5 border border-red-200 rounded-lg text-red-500 hover:bg-red-50 transition-colors"
+//           >
+//             Delete event
+//           </button>
+//         </div>
+//       )}
+//     </div>
+//   );
+// }
+
+// function SectionHeader({ title, count }: { title: string; count?: number }) {
+//   return (
+//     <div className="flex items-center gap-3 mb-1">
+//       <h2 className="text-base font-semibold text-gray-900">{title}</h2>
+//       {count !== undefined && (
+//         <span className="text-xs bg-gray-100 text-gray-600 rounded-full px-2 py-0.5">{count}</span>
+//       )}
+//       <div className="flex-1 h-px bg-gray-100" />
+//     </div>
+//   );
+// }
+// function Field({ label, children }: { label: string; children: React.ReactNode }) {
+//   return (
+//     <div className="space-y-1">
+//       <label className="text-xs font-medium text-gray-600">{label}</label>
+//       {children}
+//     </div>
+//   );
+// }
+// function Empty({ message }: { message: string }) {
+//   return (
+//     <div className="text-center py-12 text-gray-400 text-sm bg-white rounded-2xl border border-gray-200">
+//       {message}
+//     </div>
+//   );
+// }
+// function Skeleton() {
+//   return (
+//     <div className="space-y-3 animate-pulse">
+//       {[1, 2, 3].map((i) => <div key={i} className="h-24 bg-gray-100 rounded-2xl" />)}
+//     </div>
+//   );
+// }
+
+
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import api from "helper/api";
-import { format, isPast, formatDistanceToNow } from "date-fns";
+import { format, isPast } from "date-fns";
 
 // ─── types ────────────────────────────────────────────────────────────────────
 interface Event {
@@ -13,21 +724,41 @@ interface Event {
   abstract?: { id: string; title: string; fileUrl: string; summary?: string } | null;
 }
 interface GalleryItem {
-  id: string;
-  title: string;
-  fileUrl: string;
-  type: string;
-  uploadedAt: string;
-  status: "PRIVATE" | "PENDING_APPROVAL" | "APPROVED";
-  coeProfile?: {
-    organization: {
-      id: string;
-      name: string;
-      logo?: string;
-    };
-  };
+  id: string; title: string; fileUrl: string; type: string;
+  uploadedAt: string; status: "PRIVATE" | "PENDING_APPROVAL" | "APPROVED";
+  coeProfile?: { organization: { id: string; name: string; logo?: string } };
 }
 type Section = "upcoming" | "request" | "past" | "gallery";
+
+// ─── Lightbox ─────────────────────────────────────────────────────────────────
+function Lightbox({ src, alt, onClose }: { src: string; alt?: string; onClose: () => void }) {
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [onClose]);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+      onClick={onClose}
+    >
+      <div className="relative max-w-4xl max-h-[90vh] w-full" onClick={(e) => e.stopPropagation()}>
+        <button
+          onClick={onClose}
+          className="absolute -top-10 right-0 text-white text-sm font-medium flex items-center gap-1 hover:text-gray-300 transition-colors z-10"
+        >
+          <span className="text-xl leading-none">×</span> Close
+        </button>
+        <img
+          src={src}
+          alt={alt ?? ""}
+          className="w-full h-auto max-h-[85vh] object-contain rounded-xl shadow-2xl"
+        />
+      </div>
+    </div>
+  );
+}
 
 function Badge({ label, color }: { label: string; color: string }) {
   return <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${color}`}>{label}</span>;
@@ -75,7 +806,6 @@ export default function CoEEventsGalleryPage() {
 function UpcomingEvents() {
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
-
   const load = () => {
     setLoading(true);
     api.get("/events/my")
@@ -83,17 +813,11 @@ function UpcomingEvents() {
       .finally(() => setLoading(false));
   };
   useEffect(load, []);
-
   async function deleteEvent(id: string) {
     if (!confirm("Delete this event?")) return;
-    try {
-      await api.delete(`/events/my/${id}`);
-      load();
-    } catch (err: any) {
-      alert(err?.response?.data?.message ?? "Delete failed");
-    }
+    try { await api.delete(`/events/my/${id}`); load(); }
+    catch (err: any) { alert(err?.response?.data?.message ?? "Delete failed"); }
   }
-
   if (loading) return <Skeleton />;
   return (
     <div className="space-y-4">
@@ -113,20 +837,15 @@ function RequestEventForm() {
   const [form, setForm] = useState({ title: "", date: "", location: "", description: "" });
   const [busy, setBusy] = useState(false);
   const [success, setSuccess] = useState(false);
-
   const minDateTime = new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
-    .toISOString()
-    .slice(0, 16);
+    .toISOString().slice(0, 16);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.date) { alert("Please select a date and time"); return; }
     setBusy(true);
     try {
-      await api.post("/events/request", {
-        ...form,
-        date: new Date(form.date).toISOString(),
-      });
+      await api.post("/events/request", { ...form, date: new Date(form.date).toISOString() });
       setSuccess(true);
       setForm({ title: "", date: "", location: "", description: "" });
     } catch (err: any) {
@@ -182,26 +901,24 @@ function RequestEventForm() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// PAST EVENTS — attach photos + abstract
+// PAST EVENTS
 // ═══════════════════════════════════════════════════════════════════════════════
 function PastEvents() {
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
-
   const load = () => {
     setLoading(true);
-    // ✅ Backend enriches all fileUrls with fresh presigned URLs on every call
     api.get("/events/my/past").then((r) => setEvents(r.data)).finally(() => setLoading(false));
   };
   useEffect(load, []);
-
   if (loading) return <Skeleton />;
   return (
     <div className="space-y-4">
       <SectionHeader title="Past Events" count={events.length} />
-      {events.length === 0 ? (
-        <Empty message="No past events yet." />
-      ) : events.map((e) => <PastEventCard key={e.id} event={e} onRefresh={load} />)}
+      {events.length === 0
+        ? <Empty message="No past events yet." />
+        : events.map((e) => <PastEventCard key={e.id} event={e} onRefresh={load} />)
+      }
     </div>
   );
 }
@@ -212,25 +929,22 @@ function PastEventCard({ event, onRefresh }: { event: Event; onRefresh: () => vo
   const [abstractTitle, setAbstractTitle] = useState("");
   const [abstractSummary, setAbstractSummary] = useState("");
   const [busy, setBusy] = useState(false);
+  // Lightbox state
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
 
   async function uploadPhoto(file: File) {
     setBusy(true);
     const fd = new FormData();
     fd.append("file", file);
-    try {
-      await api.post(`/events/my/${event.id}/photos`, fd);
-      onRefresh(); // ✅ re-fetch gives fresh presigned URLs
-    } catch (err: any) {
-      alert(err?.response?.data?.message ?? "Upload failed");
-    } finally { setBusy(false); }
+    try { await api.post(`/events/my/${event.id}/photos`, fd); onRefresh(); }
+    catch (err: any) { alert(err?.response?.data?.message ?? "Upload failed"); }
+    finally { setBusy(false); }
   }
-
   async function removePhoto(photoId: string) {
     if (!confirm("Remove this photo?")) return;
     await api.delete(`/events/my/photos/${photoId}`);
     onRefresh();
   }
-
   async function uploadAbstract(file: File) {
     if (!abstractTitle.trim()) { alert("Please enter a title for the abstract"); return; }
     setBusy(true);
@@ -240,29 +954,30 @@ function PastEventCard({ event, onRefresh }: { event: Event; onRefresh: () => vo
     if (abstractSummary) fd.append("summary", abstractSummary);
     try {
       await api.post(`/events/my/${event.id}/abstract`, fd);
-      setAbstractTitle("");
-      setAbstractSummary("");
-      onRefresh();
+      setAbstractTitle(""); setAbstractSummary(""); onRefresh();
     } catch (err) { console.error(err); }
     finally { setBusy(false); }
   }
-
   async function removeAbstract() {
     if (!confirm("Remove abstract?")) return;
     await api.delete(`/events/my/${event.id}/abstract`);
     onRefresh();
   }
-async function deleteEvent() {
+  async function deleteEvent() {
     if (!confirm("Delete this event and all its photos/abstract?")) return;
-    try {
-      await api.delete(`/events/my/${event.id}`);
-      onRefresh();
-    } catch (err: any) {
-      alert(err?.response?.data?.message ?? "Delete failed");
-    }
+    try { await api.delete(`/events/my/${event.id}`); onRefresh(); }
+    catch (err: any) { alert(err?.response?.data?.message ?? "Delete failed"); }
   }
+
+  const photos = event.photos ?? [];
+
   return (
     <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 space-y-4">
+      {/* Lightbox */}
+      {lightboxSrc && (
+        <Lightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />
+      )}
+
       {/* Header */}
       <div className="flex items-start justify-between flex-wrap gap-2">
         <div>
@@ -272,54 +987,72 @@ async function deleteEvent() {
             {event.location && ` · ${event.location}`}
           </p>
         </div>
-        <Badge
-          label={event.category ?? "MINOR"}
-          color={event.category === "MAJOR" ? "bg-amber-100 text-amber-700" : "bg-blue-50 text-blue-600"}
-     
-     />
-     {/* ← NEW */}
+        <div className="flex items-center gap-2">
+          <Badge
+            label={event.category ?? "MINOR"}
+            color={event.category === "MAJOR" ? "bg-amber-100 text-amber-700" : "bg-blue-50 text-blue-600"}
+          />
           <button
             onClick={deleteEvent}
             className="text-xs px-3 py-1.5 border border-red-200 rounded-lg text-red-500 hover:bg-red-50 transition-colors"
           >
             Delete event
           </button>
+        </div>
       </div>
 
-      {/* Photos */}
-      {/* Photos */}
-<div>
-  <p className="text-xs font-semibold text-gray-600 mb-2">
-    📷 Event Photos ({event.photos?.length ?? 0}/2)
-  </p>
+      {/* ── Photos: 2-per-row compact grid ── */}
+      <div>
+        <p className="text-xs font-semibold text-gray-600 mb-2">
+          📷 Event Photos ({photos.length}/2)
+        </p>
 
-  {/* ← grid-cols-2 so 2 photos always sit side by side */}
-  <div className={`grid gap-3 ${(event.photos?.length ?? 0) === 2 ? "grid-cols-2" : "grid-cols-1"}`}>
-    {event.photos?.map((p) => (
-      <div key={p.id} className="relative group rounded-xl overflow-hidden border border-gray-200 aspect-video">
-        <SafeImage src={p.fileUrl} className="w-full h-full object-cover" />
-        <button
-          onClick={() => removePhoto(p.id)}
-          className="absolute inset-0 bg-black/50 text-white text-xs opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
-        >
-          Remove
-        </button>
+        <div className="grid grid-cols-2 gap-3">
+          {/* Existing photos */}
+          {photos.map((p) => (
+            <div
+              key={p.id}
+              className="relative group rounded-xl overflow-hidden border border-gray-200 bg-gray-50"
+              style={{ height: 160 }}
+            >
+              {/* Clickable thumbnail → lightbox */}
+              <button
+                className="w-full h-full block"
+                onClick={() => setLightboxSrc(p.fileUrl)}
+                title="Click to view full image"
+              >
+                <SafeImage
+                  src={p.fileUrl}
+                  className="w-full h-full object-cover hover:scale-105 transition-transform duration-200"
+                />
+              </button>
+              {/* Remove overlay */}
+              <button
+                onClick={() => removePhoto(p.id)}
+                className="absolute inset-0 bg-black/50 text-white text-xs opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center font-medium"
+              >
+                🗑 Remove
+              </button>
+            </div>
+          ))}
+
+          {/* Upload slot — only if fewer than 2 photos */}
+          {photos.length < 2 && (
+            <button
+              onClick={() => photoRef.current?.click()}
+              disabled={busy}
+              className="rounded-xl border-2 border-dashed border-gray-300 flex flex-col items-center justify-center text-gray-400 hover:border-emerald-400 hover:text-emerald-500 transition-colors text-xs gap-1"
+              style={{ height: 160 }}
+            >
+              <span className="text-2xl">+</span>
+              <span>Add Photo</span>
+            </button>
+          )}
+        </div>
+
+        <input ref={photoRef} type="file" accept="image/*" className="hidden"
+          onChange={(e) => e.target.files?.[0] && uploadPhoto(e.target.files[0])} />
       </div>
-    ))}
-    {(event.photos?.length ?? 0) < 2 && (
-      <button
-        onClick={() => photoRef.current?.click()}
-        disabled={busy}
-        className="rounded-xl border-2 border-dashed border-gray-300 flex flex-col items-center justify-center text-gray-400 hover:border-emerald-400 hover:text-emerald-500 transition-colors text-xs gap-1 aspect-video"
-      >
-        <span className="text-2xl">+</span>
-        <span>Add Photo</span>
-      </button>
-    )}
-  </div>
-  <input ref={photoRef} type="file" accept="image/*" className="hidden"
-    onChange={(e) => e.target.files?.[0] && uploadPhoto(e.target.files[0])} />
-</div>
 
       {/* Abstract */}
       <div>
@@ -333,7 +1066,6 @@ async function deleteEvent() {
               )}
             </div>
             <div className="flex gap-2 shrink-0 ml-3">
-              {/* ✅ presigned URL — opens doc in new tab */}
               <a href={event.abstract.fileUrl} target="_blank" rel="noreferrer"
                 className="text-xs px-3 py-1.5 border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors">
                 View
@@ -368,10 +1100,6 @@ async function deleteEvent() {
 // ═══════════════════════════════════════════════════════════════════════════════
 // GALLERY MANAGER
 // ═══════════════════════════════════════════════════════════════════════════════
-// ═══════════════════════════════════════════════════════════════════════════════
-// GALLERY MANAGER — CoE
-// Grid layout: 3 per row, max 10 items, request to portal, delete
-// ═══════════════════════════════════════════════════════════════════════════════
 function GalleryManager() {
   const [items, setItems] = useState<GalleryItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -381,6 +1109,7 @@ function GalleryManager() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [requesting, setRequesting] = useState<string | null>(null);
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
 
   const load = () => {
     setLoading(true);
@@ -393,46 +1122,27 @@ function GalleryManager() {
     if (items.length >= 10) { alert("Maximum 10 gallery items allowed"); return; }
     setBusy(true);
     const fd = new FormData();
-    fd.append("file", file);
-    fd.append("title", title);
-    fd.append("type", type);
-    try {
-      await api.post("/gallery/my", fd);
-      setTitle("");
-      load();
-    } catch (err: any) {
-      alert(err?.response?.data?.message ?? "Upload failed");
-    } finally { setBusy(false); }
+    fd.append("file", file); fd.append("title", title); fd.append("type", type);
+    try { await api.post("/gallery/my", fd); setTitle(""); load(); }
+    catch (err: any) { alert(err?.response?.data?.message ?? "Upload failed"); }
+    finally { setBusy(false); }
   }
-
   async function remove(id: string) {
     if (!confirm("Delete this item?")) return;
-    try {
-      await api.delete(`/gallery/my/${id}`);
-      load();
-    } catch (err: any) {
-      alert(err?.response?.data?.message ?? "Delete failed");
-    }
+    try { await api.delete(`/gallery/my/${id}`); load(); }
+    catch (err: any) { alert(err?.response?.data?.message ?? "Delete failed"); }
   }
-
   async function requestToPortal(id: string) {
     setRequesting(id);
-    try {
-      await api.post(`/gallery/my/${id}/request-portal`);
-      load();
-    } catch (err: any) {
-      alert(err?.response?.data?.message ?? "Request failed");
-    } finally { setRequesting(null); }
+    try { await api.post(`/gallery/my/${id}/request-portal`); load(); }
+    catch (err: any) { alert(err?.response?.data?.message ?? "Request failed"); }
+    finally { setRequesting(null); }
   }
-
   async function cancelRequest(id: string) {
     setRequesting(id);
-    try {
-      await api.post(`/gallery/my/${id}/cancel-request`);
-      load();
-    } catch (err: any) {
-      alert(err?.response?.data?.message ?? "Cancel failed");
-    } finally { setRequesting(null); }
+    try { await api.post(`/gallery/my/${id}/cancel-request`); load(); }
+    catch (err: any) { alert(err?.response?.data?.message ?? "Cancel failed"); }
+    finally { setRequesting(null); }
   }
 
   const filtered = activeType === "all" ? items : items.filter((i) => i.type === activeType);
@@ -442,6 +1152,8 @@ function GalleryManager() {
 
   return (
     <div className="space-y-5">
+      {lightboxSrc && <Lightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />}
+
       {/* Upload panel */}
       <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5">
         <div className="flex items-center justify-between mb-4">
@@ -452,36 +1164,25 @@ function GalleryManager() {
             {items.length}/10 items
           </span>
         </div>
-
         {items.length < 10 && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Item title *"
-              className="input"
-            />
+            <input value={title} onChange={(e) => setTitle(e.target.value)}
+              placeholder="Item title *" className="input" />
             <select value={type} onChange={(e) => setType(e.target.value as any)} className="input">
               <option value="image">🖼️ Image</option>
               <option value="video">🎬 Video</option>
               <option value="doc">📄 Document</option>
             </select>
-            <button
-              onClick={() => fileRef.current?.click()}
-              disabled={busy}
-              className="px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-40 transition-colors"
-            >
+            <button onClick={() => fileRef.current?.click()} disabled={busy}
+              className="px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-40 transition-colors">
               {busy ? "Uploading…" : "Choose & Upload"}
             </button>
           </div>
         )}
         <input ref={fileRef} type="file" accept={accept} className="hidden"
           onChange={(e) => e.target.files?.[0] && upload(e.target.files[0])} />
-
         {items.length >= 10 && (
-          <p className="text-sm text-red-500 mt-2">
-            Maximum limit reached. Delete an item to upload more.
-          </p>
+          <p className="text-sm text-red-500 mt-2">Maximum limit reached. Delete an item to upload more.</p>
         )}
       </div>
 
@@ -507,8 +1208,9 @@ function GalleryManager() {
       {filtered.length === 0 ? (
         <Empty message="No items yet. Upload something!" />
       ) : (
-        // ✅ 3-column grid
-<div className="grid grid-cols-3 gap-4">          {filtered.map((item) => (
+        /* ── 2-per-row grid ── */
+        <div className="grid grid-cols-2 gap-4">
+          {filtered.map((item) => (
             <CoEGalleryCard
               key={item.id}
               item={item}
@@ -516,6 +1218,7 @@ function GalleryManager() {
               onRequestPortal={() => requestToPortal(item.id)}
               onCancelRequest={() => cancelRequest(item.id)}
               isRequesting={requesting === item.id}
+              onOpenLightbox={item.type === "image" ? () => setLightboxSrc(item.fileUrl) : undefined}
             />
           ))}
         </div>
@@ -526,32 +1229,34 @@ function GalleryManager() {
 
 // ─── CoE Gallery Card ─────────────────────────────────────────────────────────
 function CoEGalleryCard({
-  item,
-  onDelete,
-  onRequestPortal,
-  onCancelRequest,
-  isRequesting,
+  item, onDelete, onRequestPortal, onCancelRequest, isRequesting, onOpenLightbox,
 }: {
-  item: GalleryItem;
-  onDelete: () => void;
-  onRequestPortal: () => void;
-  onCancelRequest: () => void;
-  isRequesting: boolean;
+  item: GalleryItem; onDelete: () => void; onRequestPortal: () => void;
+  onCancelRequest: () => void; isRequesting: boolean; onOpenLightbox?: () => void;
 }) {
   const statusColor =
     item.status === "APPROVED" ? "bg-emerald-500" :
     item.status === "PENDING_APPROVAL" ? "bg-amber-400" : "bg-gray-400";
-
   const statusLabel =
     item.status === "APPROVED" ? "On Portal" :
     item.status === "PENDING_APPROVAL" ? "Pending" : "Private";
 
   return (
     <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col">
-      {/* Thumbnail */}
-      <div className="relative w-full h-48 bg-gray-100">
+      {/* Thumbnail — fixed height, clickable for images */}
+      <div className="relative w-full bg-gray-100" style={{ height: 160 }}>
         {item.type === "image" ? (
-          <SafeImage src={item.fileUrl} alt={item.title} className="w-full h-full object-cover" />
+          <button
+            className="w-full h-full block"
+            onClick={onOpenLightbox}
+            title="Click to view full image"
+          >
+            <SafeImage
+              src={item.fileUrl}
+              alt={item.title}
+              className="w-full h-full object-cover hover:scale-105 transition-transform duration-200"
+            />
+          </button>
         ) : item.type === "video" ? (
           <video src={item.fileUrl} className="w-full h-full object-cover" muted playsInline />
         ) : (
@@ -560,57 +1265,35 @@ function CoEGalleryCard({
             <span className="text-xs">Document</span>
           </div>
         )}
-        {/* Status badge */}
         <span className={`absolute top-2 right-2 text-[10px] font-semibold px-2 py-0.5 rounded-full text-white ${statusColor}`}>
           {statusLabel}
         </span>
       </div>
 
-      {/* Info */}
+      {/* Info + actions */}
       <div className="p-3 flex-1 flex flex-col gap-2">
         <p className="text-sm font-medium text-gray-800 truncate">{item.title}</p>
-        <p className="text-[10px] text-gray-400">
-          {new Date(item.uploadedAt).toLocaleDateString()}
-        </p>
-
-        {/* Actions */}
+        <p className="text-[10px] text-gray-400">{new Date(item.uploadedAt).toLocaleDateString()}</p>
         <div className="flex gap-2 mt-auto flex-wrap">
-          {/* View */}
-          <a
-            href={item.fileUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="text-xs px-3 py-1.5 border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors"
-          >
+          <a href={item.fileUrl} target="_blank" rel="noreferrer"
+            className="text-xs px-3 py-1.5 border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors">
             View
           </a>
-
-          {/* Request / Cancel portal */}
           {item.status === "PRIVATE" && (
-            <button
-              onClick={onRequestPortal}
-              disabled={isRequesting}
-              className="text-xs px-3 py-1.5 border border-emerald-200 rounded-lg text-emerald-600 hover:bg-emerald-50 transition-colors disabled:opacity-40"
-            >
-              {isRequesting ? "…" : "→ Request Portal"}
+            <button onClick={onRequestPortal} disabled={isRequesting}
+              className="text-xs px-3 py-1.5 border border-emerald-200 rounded-lg text-emerald-600 hover:bg-emerald-50 transition-colors disabled:opacity-40">
+              {isRequesting ? "…" : "→ Portal"}
             </button>
           )}
           {item.status === "PENDING_APPROVAL" && (
-            <button
-              onClick={onCancelRequest}
-              disabled={isRequesting}
-              className="text-xs px-3 py-1.5 border border-amber-200 rounded-lg text-amber-600 hover:bg-amber-50 transition-colors disabled:opacity-40"
-            >
-              {isRequesting ? "…" : "✕ Cancel Request"}
+            <button onClick={onCancelRequest} disabled={isRequesting}
+              className="text-xs px-3 py-1.5 border border-amber-200 rounded-lg text-amber-600 hover:bg-amber-50 transition-colors disabled:opacity-40">
+              {isRequesting ? "…" : "✕ Cancel"}
             </button>
           )}
-
-          {/* Delete — not allowed if approved */}
           {item.status !== "APPROVED" && (
-            <button
-              onClick={onDelete}
-              className="text-xs px-3 py-1.5 border border-red-200 rounded-lg text-red-500 hover:bg-red-50 transition-colors ml-auto"
-            >
+            <button onClick={onDelete}
+              className="text-xs px-3 py-1.5 border border-red-200 rounded-lg text-red-500 hover:bg-red-50 transition-colors ml-auto">
               Delete
             </button>
           )}
@@ -620,20 +1303,18 @@ function CoEGalleryCard({
   );
 }
 
-// ─── SafeImage — graceful fallback if a presigned URL has expired ─────────────
+// ─── SafeImage ────────────────────────────────────────────────────────────────
 function SafeImage({ src, alt = "", className = "" }: { src: string; alt?: string; className?: string }) {
   const [errored, setErrored] = useState(false);
   if (errored) {
     return (
-      <div className={`bg-gray-100 flex items-center justify-center text-gray-300 text-xs ${className}`}>
-        —
-      </div>
+      <div className={`bg-gray-100 flex items-center justify-center text-gray-300 text-xs ${className}`}>—</div>
     );
   }
   return <img src={src} alt={alt} className={className} onError={() => setErrored(true)} />;
 }
 
-// ─── shared ───────────────────────────────────────────────────────────────────
+// ─── Shared ───────────────────────────────────────────────────────────────────
 function EventCard({ event, onDelete }: { event: Event; onDelete?: () => void }) {
   return (
     <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5">
@@ -662,10 +1343,8 @@ function EventCard({ event, onDelete }: { event: Event; onDelete?: () => void })
       {event.approvedBy && <p className="text-xs text-gray-400 mt-2">Approved by {event.approvedBy}</p>}
       {onDelete && (
         <div className="mt-3 pt-3 border-t border-gray-100 flex justify-end">
-          <button
-            onClick={onDelete}
-            className="text-xs px-3 py-1.5 border border-red-200 rounded-lg text-red-500 hover:bg-red-50 transition-colors"
-          >
+          <button onClick={onDelete}
+            className="text-xs px-3 py-1.5 border border-red-200 rounded-lg text-red-500 hover:bg-red-50 transition-colors">
             Delete event
           </button>
         </div>
@@ -695,9 +1374,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 }
 function Empty({ message }: { message: string }) {
   return (
-    <div className="text-center py-12 text-gray-400 text-sm bg-white rounded-2xl border border-gray-200">
-      {message}
-    </div>
+    <div className="text-center py-12 text-gray-400 text-sm bg-white rounded-2xl border border-gray-200">{message}</div>
   );
 }
 function Skeleton() {
