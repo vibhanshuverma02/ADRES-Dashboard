@@ -99,6 +99,21 @@ interface DashboardProps {
 
 export const dynamic = "force-dynamic";
 
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import Header from "layouts/header/Header";
+import Sidebar from "layouts/Sidebar";
+import ClientWrapper from "components/common/ClientWrapper";
+
+const API_URL = process.env.API_INTERNAL_URL || "http://localhost:3010";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://adresnetwork.iitr.ac.in";
+
+interface DashboardProps {
+  children: React.ReactNode;
+}
+
+export const dynamic = "force-dynamic";
+
 export default async function DashboardLayout({ children }: DashboardProps) {
   try {
     const cookieStore = cookies();
@@ -115,12 +130,11 @@ export default async function DashboardLayout({ children }: DashboardProps) {
     if (!res.ok) redirect(`${APP_URL}/login`);
     const me = await res.json();
 
-    // ✅ DEBUG 1 — me object
     console.log('🔍 [LAYOUT] me object:', {
       sub: me.sub,
       roles: me.roles,
       orgId: me.orgId,
-      orgLogo: me.orgLogo,   // expect null here — that's fine
+      orgLogo: me.orgLogo,
     });
 
     if (!activeRole || !me.roles?.includes(activeRole)) {
@@ -141,20 +155,20 @@ export default async function DashboardLayout({ children }: DashboardProps) {
         cache: "no-store",
       });
     } else if (activeRole === "RESEARCHER") {
-      profileRes = await fetch(`${API_URL}/users/profile/${me.sub}`, {
+      // ✅ FIXED — was /users/profile/${me.sub} (404), now correct route
+      profileRes = await fetch(`${API_URL}/users/profile`, {
         headers: { Authorization: `Bearer ${token}` },
         cache: "no-store",
       });
     }
 
-    // ✅ DEBUG 2 — Raw profile response
     if (profileRes) {
       console.log('🔍 [LAYOUT] profile fetch status:', profileRes.status, profileRes.ok);
       if (profileRes.ok) {
         profile = await profileRes.json();
         console.log('🔍 [LAYOUT] profile response:', JSON.stringify({
           keys: Object.keys(profile || {}),
-          orgLogo: profile?.orgLogo,                                        // ← THE KEY ONE
+          orgLogo: profile?.orgLogo,
           baseCoeOrgLogo: profile?.base?.coeManaged?.organization?.logo,
           baseResearcherOrgLogo: profile?.base?.researcherProfile?.organization?.logo,
         }, null, 2));
@@ -163,12 +177,11 @@ export default async function DashboardLayout({ children }: DashboardProps) {
       }
     }
 
-    // ✅ DEBUG 3 — orgLogo resolution chain
     const orgLogoSources = {
-      'profile?.orgLogo':                                   profile?.orgLogo,
-      'profile?.base?.coeManaged?.organization?.logo':      profile?.base?.coeManaged?.organization?.logo,
+      'profile?.orgLogo': profile?.orgLogo,
+      'profile?.base?.coeManaged?.organization?.logo': profile?.base?.coeManaged?.organization?.logo,
       'profile?.base?.researcherProfile?.organization?.logo': profile?.base?.researcherProfile?.organization?.logo,
-      'me?.orgLogo':                                        me?.orgLogo,
+      'me?.orgLogo': me?.orgLogo,
     };
     console.log('🔍 [LAYOUT] orgLogo sources:', orgLogoSources);
 
@@ -182,11 +195,19 @@ export default async function DashboardLayout({ children }: DashboardProps) {
     console.log('🔍 [LAYOUT] ✅ Final orgLogo:', orgLogo);
 
     const mergedUser = { ...me, orgLogo };
-    console.log('🔍 [LAYOUT] mergedUser.orgLogo:', mergedUser.orgLogo); // last check before passing to client
+    console.log('🔍 [LAYOUT] mergedUser.orgLogo:', mergedUser.orgLogo);
 
     return (
       <ClientWrapper user={mergedUser} token={token} roleFromUrl={activeRole}>
-        ...
+        <div>
+          <div className="d-none d-lg-block">
+            <Sidebar hideLogo={false} containerId="miniSidebar" />
+          </div>
+          <div id="content" className="position-relative h-100">
+            <Header />
+            <div className="custom-container">{children}</div>
+          </div>
+        </div>
       </ClientWrapper>
     );
 
