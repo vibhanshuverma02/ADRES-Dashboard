@@ -85,7 +85,6 @@ import { IconLogin2 } from "@tabler/icons-react";
 
 // import custom components
 import { Avatar } from "components/common/Avatar";
-import { getAssetPath } from "helper/assetPath";
 import { useAuth } from "context/Authcontext";
 
 // import role-based routes
@@ -108,24 +107,35 @@ const CustomToggle = React.forwardRef<HTMLAnchorElement, UserToggleProps>(
 CustomToggle.displayName = "CustomToggle";
 
 const UserMenu = () => {
-  const { user, activeRole, logout ,orgLogo } = useAuth();
+  const { user, activeRole, logout, orgLogo } = useAuth();
 
   // Decide menu based on activeRole
   let roleMenu: any[] = [];
   if (activeRole === "SUPER_ADMIN") {
     roleMenu = UserMenuItem;
   } else if (activeRole === "RESEARCHER") {
-    roleMenu =ResearcherHeaderMenu;
+    roleMenu = ResearcherHeaderMenu;
   } else if (activeRole === "COE_MANAGER") {
     roleMenu = CoEManagerHeaderMenu;
   }
 
+  // ✅ Avatar fallback logic
+  const userAvatar =
+    user?.avatar ||
+    orgLogo ||
+    "/images/default-user-avatar.png";
+
+  const orgAvatar =
+    orgLogo ||
+    "/images/default-org-logo.png";
+
   return (
     <Dropdown>
+      {/* 🔹 Navbar Avatar (User first) */}
       <Dropdown.Toggle as={CustomToggle}>
         <Avatar
           type="image"
-          src={orgLogo || "/images/default-org-logo.png"}
+          src={userAvatar}
           size="sm"
           alt="User Avatar"
           className="rounded-circle"
@@ -133,15 +143,15 @@ const UserMenu = () => {
       </Dropdown.Toggle>
 
       <Dropdown.Menu align="end" className="p-0 dropdown-menu-md">
-        {/* User Info */}
+        {/* 🔹 User Info Section */}
         <div className="d-flex gap-3 align-items-center border-dashed border-bottom px-4 py-4">
           <Image
-             src={orgLogo || "/images/default-org-logo.png"}
-            alt=""
+            src={orgAvatar}
+            alt="Org Logo"
             className="avatar avatar-md rounded-circle"
           />
           <div>
-            <h4 className="mb-0 fs-5">{user?.username || "User"}</h4>
+            <h4 className="mb-0 fs-5">{user?.name || "User"}</h4>
             <p className="mb-0 text-secondary small">
               {user?.email || "No email"}
             </p>
@@ -151,8 +161,9 @@ const UserMenu = () => {
           </div>
         </div>
 
-        {/* Role-specific Menu */}
-        {/* <div className="p-3 d-flex flex-column gap-1">
+        {/* 🔹 Role-specific Menu (optional enable) */}
+        {/*
+        <div className="p-3 d-flex flex-column gap-1">
           {roleMenu.map((item) => (
             <Dropdown.Item
               key={item.id}
@@ -164,9 +175,10 @@ const UserMenu = () => {
               <span>{item.title}</span>
             </Dropdown.Item>
           ))}
-        </div> */}
+        </div>
+        */}
 
-        {/* Logout */}
+        {/* 🔹 Logout */}
         <div className="border-dashed border-top mb-4 pt-4 px-6">
           <button
             className="btn btn-link text-secondary d-flex align-items-center gap-2 p-0"
