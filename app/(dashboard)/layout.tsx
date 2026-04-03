@@ -83,21 +83,7 @@
 //     redirect("https://adresnetwork.iitr.ac.in/login");
 //   }
 // }
-import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
-import Header from "layouts/header/Header";
-import Sidebar from "layouts/Sidebar";
-import ClientWrapper from "components/common/ClientWrapper";
 
-// ✅ Internal URL — no SSL issues between containers
-const API_URL = process.env.API_INTERNAL_URL || "http://localhost:3010";
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://adresnetwork.iitr.ac.in";
-
-interface DashboardProps {
-  children: React.ReactNode;
-}
-
-export const dynamic = "force-dynamic";
 
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
