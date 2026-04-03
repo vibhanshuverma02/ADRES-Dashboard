@@ -107,7 +107,6 @@ export default async function DashboardLayout({ children }: DashboardProps) {
 
     if (!token) redirect(`${APP_URL}/login`);
 
-    // ✅ Internal fetch — no SSL cert issue
     const res = await fetch(`${API_URL}/auth/me`, {
       headers: { Authorization: `Bearer ${token}` },
       cache: "no-store",
@@ -116,51 +115,78 @@ export default async function DashboardLayout({ children }: DashboardProps) {
     if (!res.ok) redirect(`${APP_URL}/login`);
     const me = await res.json();
 
+    // ✅ DEBUG 1 — me object
+    console.log('🔍 [LAYOUT] me object:', {
+      sub: me.sub,
+      roles: me.roles,
+      orgId: me.orgId,
+      orgLogo: me.orgLogo,   // expect null here — that's fine
+    });
+
     if (!activeRole || !me.roles?.includes(activeRole)) {
       redirect(`${APP_URL}/choose-role`);
     }
 
     let profile = null;
-    if (activeRole === "COE_MANAGER") {
-      const r = await fetch(`${API_URL}/coes/profile`, {
-        headers: { Authorization: `Bearer ${token}` },
-        cache: "no-store",
-      });
-      profile = r.ok ? await r.json() : null;
-    } else if (activeRole === "SUPER_ADMIN") {
-      const r = await fetch(`${API_URL}/admin/profile`, {
-        headers: { Authorization: `Bearer ${token}` },
-        cache: "no-store",
-      });
-      profile = r.ok ? await r.json() : null;
-    } else if (activeRole === "RESEARCHER") {
-      const r = await fetch(`${API_URL}/users/profile/${me.sub}`, {
-        headers: { Authorization: `Bearer ${token}` },
-        cache: "no-store",
-      });
-      profile = r.ok ? await r.json() : null;
-    }
- const orgLogo =
-  profile?.orgLogo ||   // ✅ from backend (best)
-  profile?.base?.coeManaged?.organization?.logo ||
-  profile?.base?.researcherProfile?.organization?.logo ||
-  me?.orgLogo ||
-  null;
+    let profileRes: Response | null = null;
 
+    if (activeRole === "COE_MANAGER") {
+      profileRes = await fetch(`${API_URL}/coes/profile`, {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: "no-store",
+      });
+    } else if (activeRole === "SUPER_ADMIN") {
+      profileRes = await fetch(`${API_URL}/admin/profile`, {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: "no-store",
+      });
+    } else if (activeRole === "RESEARCHER") {
+      profileRes = await fetch(`${API_URL}/users/profile/${me.sub}`, {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: "no-store",
+      });
+    }
+
+    // ✅ DEBUG 2 — Raw profile response
+    if (profileRes) {
+      console.log('🔍 [LAYOUT] profile fetch status:', profileRes.status, profileRes.ok);
+      if (profileRes.ok) {
+        profile = await profileRes.json();
+        console.log('🔍 [LAYOUT] profile response:', JSON.stringify({
+          keys: Object.keys(profile || {}),
+          orgLogo: profile?.orgLogo,                                        // ← THE KEY ONE
+          baseCoeOrgLogo: profile?.base?.coeManaged?.organization?.logo,
+          baseResearcherOrgLogo: profile?.base?.researcherProfile?.organization?.logo,
+        }, null, 2));
+      } else {
+        console.log('🔍 [LAYOUT] profile fetch failed');
+      }
+    }
+
+    // ✅ DEBUG 3 — orgLogo resolution chain
+    const orgLogoSources = {
+      'profile?.orgLogo':                                   profile?.orgLogo,
+      'profile?.base?.coeManaged?.organization?.logo':      profile?.base?.coeManaged?.organization?.logo,
+      'profile?.base?.researcherProfile?.organization?.logo': profile?.base?.researcherProfile?.organization?.logo,
+      'me?.orgLogo':                                        me?.orgLogo,
+    };
+    console.log('🔍 [LAYOUT] orgLogo sources:', orgLogoSources);
+
+    const orgLogo =
+      profile?.orgLogo ||
+      profile?.base?.coeManaged?.organization?.logo ||
+      profile?.base?.researcherProfile?.organization?.logo ||
+      me?.orgLogo ||
+      null;
+
+    console.log('🔍 [LAYOUT] ✅ Final orgLogo:', orgLogo);
 
     const mergedUser = { ...me, orgLogo };
+    console.log('🔍 [LAYOUT] mergedUser.orgLogo:', mergedUser.orgLogo); // last check before passing to client
 
     return (
       <ClientWrapper user={mergedUser} token={token} roleFromUrl={activeRole}>
-        <div>
-          <div className="d-none d-lg-block">
-            <Sidebar hideLogo={false} containerId="miniSidebar" />
-          </div>
-          <div id="content" className="position-relative h-100">
-            <Header />
-            <div className="custom-container">{children}</div>
-          </div>
-        </div>
+        ...
       </ClientWrapper>
     );
 
