@@ -140,10 +140,13 @@ export default async function DashboardLayout({ children }: DashboardProps) {
       });
       profile = r.ok ? await r.json() : null;
     }
- const orgLogo =
-      profile?.base?.coeManaged?.organization?.logo ||
-      profile?.base?.organization?.logo ||
-      null;
+const orgLogo =
+  profile?.base?.coeManaged?.organization?.logo ||
+  profile?.base?.organization?.logo ||
+  profile?.organization?.logo ||
+  me?.orgLogo ||
+  null;
+
 
     const mergedUser = { ...me, orgLogo };
 
