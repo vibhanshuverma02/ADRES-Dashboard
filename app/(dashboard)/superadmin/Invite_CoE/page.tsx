@@ -259,7 +259,6 @@ const EMPTY_FORM: InviteCoEInput = {
   state: "",
   subTypeId: "",
   role: "COE_MANAGER",
-  domain: "",
   logoUrl: "",
 };
 
@@ -273,9 +272,7 @@ export default function InviteCoEPage() {
   } | null>(null);
 
   // preview URL derived from domain
-  const clearbitLogoUrl = formData.domain
-    ? `https://logo.clearbit.com/${formData.domain}`
-    : null;
+  
 
   useEffect(() => {
     api
@@ -308,7 +305,7 @@ export default function InviteCoEPage() {
         state:     formData.state,
         subTypeId: formData.subTypeId,
         role:      formData.role,
-        logoUrl:   clearbitLogoUrl ?? undefined,  // built from domain
+        logoUrl:   formData.logoUrl || undefined,  // ✅ direct URL
       };
 
       const res = await api.post("/admin/invite-coe", payload);
@@ -354,37 +351,38 @@ export default function InviteCoEPage() {
               <Form onSubmit={handleSubmit}>
 
                 {/* Domain → auto logo */}
-                <Form.Group className="mb-3">
-                  <Form.Label>Organization Website (Domain)</Form.Label>
-                  <Form.Control
-                    type="text"
-                    name="domain"
-                    value={formData.domain || ""}
-                    onChange={handleChange}
-                    placeholder="e.g. iitd.ac.in"
-                    className="form-focus-none"
-                  />
-                  <Form.Text className="text-muted">
-                    Logo will be auto-fetched from Clearbit using this domain.
-                  </Form.Text>
-                </Form.Group>
+              {/* ✅ Direct logo URL input */}
+<Form.Group className="mb-3">
+  <Form.Label>Organization Logo URL</Form.Label>
+  <Form.Control
+    type="text"
+    name="logoUrl"
+    value={formData.logoUrl || ""}
+    onChange={handleChange}
+    placeholder="https://example.com/logo.png"
+    className="form-focus-none"
+  />
+  <Form.Text className="text-muted">
+    Paste a direct link to the organization logo image.
+  </Form.Text>
+</Form.Group>
 
-                {/* ✅ Live logo preview */}
-                {clearbitLogoUrl && (
-                  <div className="mb-3 d-flex align-items-center gap-2">
-                    <Image
-                      src={clearbitLogoUrl}
-                      alt="Logo preview"
-                      width={40}
-                      height={40}
-                      className="rounded"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).style.display = "none";
-                      }}
-                    />
-                    <span className="text-muted small">Logo preview</span>
-                  </div>
-                )}
+{/* ✅ Live logo preview */}
+{formData.logoUrl && (
+  <div className="mb-3 d-flex align-items-center gap-2">
+    <Image
+      src={formData.logoUrl}
+      alt="Logo preview"
+      width={40}
+      height={40}
+      className="rounded border"
+      onError={(e) => {
+        (e.target as HTMLImageElement).style.display = "none";
+      }}
+    />
+    <span className="text-muted small">Logo preview</span>
+  </div>
+)}
 
                 <Form.Group className="mb-3">
                   <Form.Label>Organization Name</Form.Label>
