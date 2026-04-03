@@ -249,7 +249,8 @@ type InviteCoEInput = {
   state: string;
   subTypeId: string;
   role: "COE_MANAGER";
-  domain?: string;   // used to build logoUrl
+  managerName: string;
+  
   logoUrl?: string;  // sent to backend
 };
 
@@ -259,6 +260,7 @@ const EMPTY_FORM: InviteCoEInput = {
   state: "",
   subTypeId: "",
   role: "COE_MANAGER",
+  managerName: "",
   logoUrl: "",
 };
 
@@ -305,7 +307,8 @@ export default function InviteCoEPage() {
         state:     formData.state,
         subTypeId: formData.subTypeId,
         role:      formData.role,
-        logoUrl:   formData.logoUrl || undefined,  // ✅ direct URL
+        logoUrl:   formData.logoUrl || undefined,
+         managerName: formData.managerName,  // ✅ direct URL
       };
 
       const res = await api.post("/admin/invite-coe", payload);
@@ -442,6 +445,17 @@ export default function InviteCoEPage() {
                     ))}
                   </DropdownButton>
                 </Form.Group>
+<Form.Group className="mb-3">
+  <Form.Label>CoE Manager Name</Form.Label>
+  <Form.Control
+    type="text"
+    name="managerName"
+    value={formData.managerName}
+    onChange={handleChange}
+    placeholder="Enter manager name"
+    required
+  />
+</Form.Group>
 
                 <Button type="submit" variant="dark" className="w-100" disabled={loading}>
                   {loading ? "Sending..." : "Send Invite"}

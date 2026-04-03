@@ -371,7 +371,7 @@ export default function UploadResourceWizard() {
   }>({ clusterTags: [], regions: [], years: [], resourceTypes: [] });
 
   const [form, setForm] = useState({
-    title: "", description: "", type: "", year: "", region: "",
+    title: "", description: "", type: "", year: "",
     clusterTag: "", workingAreaId: "", file: null as File | null,
   });
 
@@ -409,7 +409,6 @@ export default function UploadResourceWizard() {
     if (!form.description.trim()) e.description = "Description is required.";
     if (!form.type)               e.type        = "Please select a type.";
     if (!form.year)               e.year        = "Please select a year.";
-    if (!form.region)             e.region      = "Please select a region.";
     if (!form.clusterTag)         e.clusterTag  = "Please select a cluster tag.";
     if (!form.workingAreaId)      e.workingAreaId = "Please select a working area.";
     setErrors(e);
@@ -440,7 +439,13 @@ export default function UploadResourceWizard() {
     if (!form.file) return;
     setUploading(true);
     const data = new FormData();
-    Object.entries(form).forEach(([k, v]) => { if (v) data.append(k, v as any); });
+   Object.entries(form).forEach(([k, v]) => {
+  if (v) data.append(k, v as any);
+});
+
+// ✅ FORCE region = ALL
+data.append("region", "ALL");
+
     try {
       await api.post("/users/upload-resource", data, {
         headers: { "Content-Type": "multipart/form-data" },
@@ -536,7 +541,7 @@ export default function UploadResourceWizard() {
 
                   <Row>
                     <Col>
-                      <Form.Group className="mb-3">
+                      {/* <Form.Group className="mb-3">
                         <Form.Label>Region <span className="text-danger">*</span></Form.Label>
                         <Form.Select name="region" value={form.region} onChange={handleChange}
                           isInvalid={!!errors.region}>
@@ -544,7 +549,7 @@ export default function UploadResourceWizard() {
                           {options.regions.map(r => <option key={r} value={r}>{r}</option>)}
                         </Form.Select>
                         <Err field="region" />
-                      </Form.Group>
+                      </Form.Group> */}
                     </Col>
                     <Col>
                       <Form.Group className="mb-3">
@@ -612,7 +617,7 @@ export default function UploadResourceWizard() {
                     <li><b>Description:</b> {form.description}</li>
                     <li><b>Type:</b> {form.type}</li>
                     <li><b>Year:</b> {form.year}</li>
-                    <li><b>Region:</b> {form.region}</li>
+                    {/* <li><b>Region:</b> {form.region}</li> */}
                     <li><b>Cluster:</b> {form.clusterTag}</li>
                     <li><b>Working Area:</b> {workingAreas.find(w => w.id === form.workingAreaId)?.name || "—"}</li>
                     <li><b>File:</b> {fileName}</li>

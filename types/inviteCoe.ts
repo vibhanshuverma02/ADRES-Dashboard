@@ -4,4 +4,5 @@ export type InviteCoEInput = {
   state?: string;
   subTypeId?: string;
   role: "COE_MANAGER";
+   managerName: string; 
 };
