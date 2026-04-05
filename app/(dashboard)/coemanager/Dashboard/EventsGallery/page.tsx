@@ -914,12 +914,19 @@ function PastEvents() {
   if (loading) return <Skeleton />;
   return (
     <div className="space-y-4">
-      <SectionHeader title="Past Events" count={events.length} />
-      {events.length === 0
-        ? <Empty message="No past events yet." />
-        : events.map((e) => <PastEventCard key={e.id} event={e} onRefresh={load} />)
-      }
+  <SectionHeader title="Past Events" count={events.length} />
+
+  {events.length === 0 ? (
+    <Empty message="No past events yet." />
+  ) : (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {events.map((e) => (
+        <PastEventCard key={e.id} event={e} onRefresh={load} />
+      ))}
     </div>
+  )}
+</div>
+
   );
 }
 
@@ -929,168 +936,196 @@ function PastEventCard({ event, onRefresh }: { event: Event; onRefresh: () => vo
   const [abstractTitle, setAbstractTitle] = useState("");
   const [abstractSummary, setAbstractSummary] = useState("");
   const [busy, setBusy] = useState(false);
-  // Lightbox state
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
 
   async function uploadPhoto(file: File) {
     setBusy(true);
     const fd = new FormData();
     fd.append("file", file);
-    try { await api.post(`/events/my/${event.id}/photos`, fd); onRefresh(); }
-    catch (err: any) { alert(err?.response?.data?.message ?? "Upload failed"); }
-    finally { setBusy(false); }
+    try {
+      await api.post(`/events/my/${event.id}/photos`, fd);
+      onRefresh();
+    } catch (err: any) {
+      alert(err?.response?.data?.message ?? "Upload failed");
+    } finally {
+      setBusy(false);
+    }
   }
+
   async function removePhoto(photoId: string) {
     if (!confirm("Remove this photo?")) return;
     await api.delete(`/events/my/photos/${photoId}`);
     onRefresh();
   }
+
   async function uploadAbstract(file: File) {
-    if (!abstractTitle.trim()) { alert("Please enter a title for the abstract"); return; }
+    if (!abstractTitle.trim()) {
+      alert("Please enter a title for the abstract");
+      return;
+    }
     setBusy(true);
     const fd = new FormData();
     fd.append("file", file);
     fd.append("title", abstractTitle);
     if (abstractSummary) fd.append("summary", abstractSummary);
+
     try {
       await api.post(`/events/my/${event.id}/abstract`, fd);
-      setAbstractTitle(""); setAbstractSummary(""); onRefresh();
-    } catch (err) { console.error(err); }
-    finally { setBusy(false); }
+      setAbstractTitle("");
+      setAbstractSummary("");
+      onRefresh();
+    } finally {
+      setBusy(false);
+    }
   }
+
   async function removeAbstract() {
     if (!confirm("Remove abstract?")) return;
     await api.delete(`/events/my/${event.id}/abstract`);
     onRefresh();
   }
+
   async function deleteEvent() {
-    if (!confirm("Delete this event and all its photos/abstract?")) return;
-    try { await api.delete(`/events/my/${event.id}`); onRefresh(); }
-    catch (err: any) { alert(err?.response?.data?.message ?? "Delete failed"); }
+    if (!confirm("Delete this event and all its data?")) return;
+    await api.delete(`/events/my/${event.id}`);
+    onRefresh();
   }
 
   const photos = event.photos ?? [];
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 space-y-4">
+    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 h-full flex flex-col">
       {/* Lightbox */}
       {lightboxSrc && (
         <Lightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />
       )}
 
       {/* Header */}
-      <div className="flex items-start justify-between flex-wrap gap-2">
+      <div className="flex items-start justify-between gap-2 mb-3">
         <div>
           <h3 className="font-semibold text-gray-900">{event.title}</h3>
-          <p className="text-xs text-gray-400 mt-0.5">
+          <p className="text-xs text-gray-400">
             {format(new Date(event.date), "dd MMM yyyy")}
             {event.location && ` · ${event.location}`}
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Badge
-            label={event.category ?? "MINOR"}
-            color={event.category === "MAJOR" ? "bg-amber-100 text-amber-700" : "bg-blue-50 text-blue-600"}
-          />
-          <button
-            onClick={deleteEvent}
-            className="text-xs px-3 py-1.5 border border-red-200 rounded-lg text-red-500 hover:bg-red-50 transition-colors"
-          >
-            Delete event
-          </button>
-        </div>
+
+        <button
+          onClick={deleteEvent}
+          className="text-xs px-3 py-1.5 border border-red-200 rounded-lg text-red-500 hover:bg-red-50"
+        >
+          Delete
+        </button>
       </div>
 
-      {/* ── Photos: 2-per-row compact grid ── */}
-      <div>
+      {/* Photos */}
+      <div className="mb-4">
         <p className="text-xs font-semibold text-gray-600 mb-2">
-          📷 Event Photos ({photos.length}/2)
+          📷 Photos ({photos.length}/2)
         </p>
 
-        <div className="grid grid-cols-2 gap-3">
-          {/* Existing photos */}
+        <div className="grid grid-cols-2 gap-2">
           {photos.map((p) => (
             <div
               key={p.id}
-              className="relative group rounded-xl overflow-hidden border border-gray-200 bg-gray-50"
-              style={{ height: 160 }}
+              className="relative group rounded-lg overflow-hidden border"
+              style={{ height: 140 }}
             >
-              {/* Clickable thumbnail → lightbox */}
               <button
-                className="w-full h-full block"
+                className="w-full h-full"
                 onClick={() => setLightboxSrc(p.fileUrl)}
-                title="Click to view full image"
               >
                 <SafeImage
                   src={p.fileUrl}
-                  className="w-full h-full object-cover hover:scale-105 transition-transform duration-200"
+                  className="w-full h-full object-cover"
                 />
               </button>
-              {/* Remove overlay */}
+
               <button
                 onClick={() => removePhoto(p.id)}
-                className="absolute inset-0 bg-black/50 text-white text-xs opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center font-medium"
+                className="absolute inset-0 bg-black/40 text-white text-xs opacity-0 group-hover:opacity-100 flex items-center justify-center"
               >
-                🗑 Remove
+                Remove
               </button>
             </div>
           ))}
 
-          {/* Upload slot — only if fewer than 2 photos */}
           {photos.length < 2 && (
             <button
               onClick={() => photoRef.current?.click()}
-              disabled={busy}
-              className="rounded-xl border-2 border-dashed border-gray-300 flex flex-col items-center justify-center text-gray-400 hover:border-emerald-400 hover:text-emerald-500 transition-colors text-xs gap-1"
-              style={{ height: 160 }}
+              className="border-2 border-dashed rounded-lg flex items-center justify-center text-gray-400 hover:text-emerald-500"
+              style={{ height: 140 }}
             >
-              <span className="text-2xl">+</span>
-              <span>Add Photo</span>
+              + Add
             </button>
           )}
         </div>
 
-        <input ref={photoRef} type="file" accept="image/*" className="hidden"
-          onChange={(e) => e.target.files?.[0] && uploadPhoto(e.target.files[0])} />
+        <input
+          ref={photoRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(e) =>
+            e.target.files?.[0] && uploadPhoto(e.target.files[0])
+          }
+        />
       </div>
 
-      {/* Abstract */}
-      <div>
-        <p className="text-xs font-semibold text-gray-600 mb-2">📄 Abstract / Report</p>
+      {/* Abstract (push to bottom) */}
+      <div className="mt-auto">
+        <p className="text-xs font-semibold text-gray-600 mb-2">📄 Abstract</p>
+
         {event.abstract ? (
-          <div className="flex items-center justify-between bg-gray-50 rounded-xl border border-gray-200 p-3">
+          <div className="flex justify-between items-center border rounded-lg p-3 bg-gray-50">
             <div>
-              <p className="text-sm font-medium text-gray-800">{event.abstract.title}</p>
-              {event.abstract.summary && (
-                <p className="text-xs text-gray-500 mt-0.5">{event.abstract.summary}</p>
-              )}
+              <p className="text-sm font-medium">{event.abstract.title}</p>
+              <p className="text-xs text-gray-500">
+                {event.abstract.summary}
+              </p>
             </div>
-            <div className="flex gap-2 shrink-0 ml-3">
-              <a href={event.abstract.fileUrl} target="_blank" rel="noreferrer"
-                className="text-xs px-3 py-1.5 border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors">
+
+            <div className="flex gap-2">
+              <a
+                href={event.abstract.fileUrl}
+                target="_blank"
+                className="text-xs border px-2 py-1 rounded"
+              >
                 View
               </a>
-              <button onClick={removeAbstract}
-                className="text-xs px-3 py-1.5 border border-red-200 rounded-lg text-red-500 hover:bg-red-50 transition-colors">
+              <button
+                onClick={removeAbstract}
+                className="text-xs border px-2 py-1 rounded text-red-500"
+              >
                 Remove
               </button>
             </div>
           </div>
         ) : (
-          <div className="space-y-2">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-              <input value={abstractTitle} onChange={(e) => setAbstractTitle(e.target.value)}
-                placeholder="Abstract title *" className="input text-sm" />
-              <input value={abstractSummary} onChange={(e) => setAbstractSummary(e.target.value)}
-                placeholder="Short summary (optional)" className="input text-sm" />
-            </div>
-            <button onClick={() => abstractRef.current?.click()} disabled={busy}
-              className="text-sm px-4 py-2 border-2 border-dashed border-gray-300 rounded-xl text-gray-500 hover:border-emerald-400 hover:text-emerald-600 transition-colors w-full">
-              + Attach Abstract (PDF / Word)
+          <>
+            <input
+              value={abstractTitle}
+              onChange={(e) => setAbstractTitle(e.target.value)}
+              placeholder="Title"
+              className="input mb-2"
+            />
+            <button
+              onClick={() => abstractRef.current?.click()}
+              className="w-full border-dashed border-2 rounded-lg py-2 text-sm text-gray-500"
+            >
+              + Upload Abstract
             </button>
-            <input ref={abstractRef} type="file" accept=".pdf,.doc,.docx" className="hidden"
-              onChange={(e) => e.target.files?.[0] && uploadAbstract(e.target.files[0])} />
-          </div>
+
+            <input
+              ref={abstractRef}
+              type="file"
+              accept=".pdf,.doc,.docx"
+              className="hidden"
+              onChange={(e) =>
+                e.target.files?.[0] && uploadAbstract(e.target.files[0])
+              }
+            />
+          </>
         )}
       </div>
     </div>
@@ -1150,81 +1185,130 @@ function GalleryManager() {
 
   if (loading) return <Skeleton />;
 
-  return (
-    <div className="space-y-5">
-      {lightboxSrc && <Lightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />}
+ return (
+  <div className="space-y-6">
+    {lightboxSrc && <Lightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />}
 
-      {/* Upload panel */}
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5">
-        <div className="flex items-center justify-between mb-4">
-          <SectionHeader title="My Gallery" />
-          <span className={`text-xs font-semibold px-2 py-1 rounded-full ${
-            items.length >= 10 ? "bg-red-100 text-red-600" : "bg-gray-100 text-gray-600"
-          }`}>
-            {items.length}/10 items
-          </span>
-        </div>
-        {items.length < 10 && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <input value={title} onChange={(e) => setTitle(e.target.value)}
-              placeholder="Item title *" className="input" />
-            <select value={type} onChange={(e) => setType(e.target.value as any)} className="input">
-              <option value="image">🖼️ Image</option>
-              <option value="video">🎬 Video</option>
-              <option value="doc">📄 Document</option>
-            </select>
-            <button onClick={() => fileRef.current?.click()} disabled={busy}
-              className="px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-40 transition-colors">
-              {busy ? "Uploading…" : "Choose & Upload"}
-            </button>
-          </div>
-        )}
-        <input ref={fileRef} type="file" accept={accept} className="hidden"
-          onChange={(e) => e.target.files?.[0] && upload(e.target.files[0])} />
-        {items.length >= 10 && (
-          <p className="text-sm text-red-500 mt-2">Maximum limit reached. Delete an item to upload more.</p>
-        )}
+    {/* ───── Upload Panel ───── */}
+    <div className="bg-white/80 backdrop-blur rounded-3xl border border-gray-200 shadow-sm p-6">
+      <div className="flex items-center justify-between mb-5">
+        <SectionHeader title="My Gallery" />
+        <span className={`text-xs font-semibold px-3 py-1 rounded-full ${
+          items.length >= 10
+            ? "bg-red-100 text-red-600"
+            : "bg-gray-100 text-gray-600"
+        }`}>
+          {items.length}/10 items
+        </span>
       </div>
 
-      {/* Filter tabs */}
-      <div className="flex gap-2 flex-wrap">
-        {["all", "image", "video", "doc"].map((t) => (
-          <button key={t} onClick={() => setActiveType(t)}
-            className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-              activeType === t ? "bg-gray-900 text-white" : "bg-white border border-gray-200 text-gray-600 hover:bg-gray-50"
-            }`}>
-            {t === "all" ? "All" : t === "image" ? "🖼️ Images" : t === "video" ? "🎬 Videos" : "📄 Docs"}
+      {items.length < 10 && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="Enter title..."
+            className="input rounded-xl border-gray-200 focus:ring-2 focus:ring-emerald-500"
+          />
+
+          <select
+            value={type}
+            onChange={(e) => setType(e.target.value as any)}
+            className="input rounded-xl border-gray-200"
+          >
+            <option value="image">🖼️ Image</option>
+            <option value="video">🎬 Video</option>
+            <option value="doc">📄 Document</option>
+          </select>
+
+          <button
+            onClick={() => fileRef.current?.click()}
+            disabled={busy}
+            className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold 
+              bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-md 
+              hover:from-emerald-600 hover:to-emerald-700 transition-all disabled:opacity-40"
+          >
+            {busy ? "Uploading..." : "⬆ Upload"}
           </button>
-        ))}
-      </div>
-
-      {/* Legend */}
-      <div className="flex gap-3 text-xs text-gray-500">
-        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-gray-400 inline-block" /> Private</span>
-        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-400 inline-block" /> Pending Approval</span>
-        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" /> On Portal</span>
-      </div>
-
-      {filtered.length === 0 ? (
-        <Empty message="No items yet. Upload something!" />
-      ) : (
-        /* ── 2-per-row grid ── */
-        <div className="grid grid-cols-2 gap-4">
-          {filtered.map((item) => (
-            <CoEGalleryCard
-              key={item.id}
-              item={item}
-              onDelete={() => remove(item.id)}
-              onRequestPortal={() => requestToPortal(item.id)}
-              onCancelRequest={() => cancelRequest(item.id)}
-              isRequesting={requesting === item.id}
-              onOpenLightbox={item.type === "image" ? () => setLightboxSrc(item.fileUrl) : undefined}
-            />
-          ))}
         </div>
       )}
+
+      <input
+        ref={fileRef}
+        type="file"
+        accept={accept}
+        className="hidden"
+        onChange={(e) => e.target.files?.[0] && upload(e.target.files[0])}
+      />
+
+      {items.length >= 10 && (
+        <p className="text-sm text-red-500 mt-3">
+          Maximum limit reached. Delete an item to upload more.
+        </p>
+      )}
     </div>
-  );
+
+    {/* ───── Filter Tabs (Modern Pills) ───── */}
+    <div className="flex gap-2 flex-wrap">
+      {["all", "image", "video", "doc"].map((t) => (
+        <button
+          key={t}
+          onClick={() => setActiveType(t)}
+          className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${
+            activeType === t
+              ? "bg-gray-900 text-white shadow"
+              : "bg-white border border-gray-200 text-gray-600 hover:bg-gray-100"
+          }`}
+        >
+          {t === "all"
+            ? "All"
+            : t === "image"
+            ? "🖼️ Images"
+            : t === "video"
+            ? "🎬 Videos"
+            : "📄 Docs"}
+        </button>
+      ))}
+    </div>
+
+    {/* ───── Status Legend ───── */}
+    <div className="flex gap-4 text-xs text-gray-500">
+      <span className="flex items-center gap-1">
+        <span className="w-2 h-2 rounded-full bg-gray-400" /> Private
+      </span>
+      <span className="flex items-center gap-1">
+        <span className="w-2 h-2 rounded-full bg-amber-400" /> Pending
+      </span>
+      <span className="flex items-center gap-1">
+        <span className="w-2 h-2 rounded-full bg-emerald-500" /> Live
+      </span>
+    </div>
+
+    {/* ───── Gallery Grid ───── */}
+    {filtered.length === 0 ? (
+      <Empty message="No items yet. Upload something!" />
+    ) : (
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+        {filtered.map((item) => (
+          <CoEGalleryCard
+            key={item.id}
+            item={item}
+            onDelete={() => remove(item.id)}
+            onRequestPortal={() => requestToPortal(item.id)}
+            onCancelRequest={() => cancelRequest(item.id)}
+            isRequesting={requesting === item.id}
+            onOpenLightbox={
+              item.type === "image"
+                ? () => setLightboxSrc(item.fileUrl)
+                : undefined
+            }
+          />
+        ))}
+      </div>
+    )}
+  </div>
+);
+
 }
 
 // ─── CoE Gallery Card ─────────────────────────────────────────────────────────
@@ -1314,44 +1398,77 @@ function SafeImage({ src, alt = "", className = "" }: { src: string; alt?: strin
   return <img src={src} alt={alt} className={className} onError={() => setErrored(true)} />;
 }
 
-// ─── Shared ───────────────────────────────────────────────────────────────────
 function EventCard({ event, onDelete }: { event: Event; onDelete?: () => void }) {
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5">
-      <div className="flex items-start justify-between flex-wrap gap-2">
+    <div className="bg-white rounded-3xl border border-gray-200 shadow-sm hover:shadow-md transition-all p-5 h-full flex flex-col">
+      
+      {/* ───── Header ───── */}
+      <div className="flex items-start justify-between gap-3">
         <div>
-          <h3 className="font-semibold text-gray-900">{event.title}</h3>
-          <p className="text-xs text-gray-400 mt-0.5">
+          <h3 className="text-base font-semibold text-gray-900 leading-snug">
+            {event.title}
+          </h3>
+
+          <p className="text-xs text-gray-400 mt-1">
             {format(new Date(event.date), "dd MMM yyyy, HH:mm")}
             {event.location && ` · ${event.location}`}
           </p>
-          {event.description && <p className="text-sm text-gray-600 mt-2">{event.description}</p>}
         </div>
-        <div className="flex flex-col gap-1 items-end">
+
+        {/* Badges */}
+        <div className="flex gap-2 flex-wrap justify-end">
           <Badge
             label={event.status ?? "PENDING"}
-            color={event.status === "APPROVED" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}
+            color={
+              event.status === "APPROVED"
+                ? "bg-emerald-100 text-emerald-700"
+                : "bg-amber-100 text-amber-700"
+            }
           />
+
           {event.category && (
             <Badge
               label={event.category}
-              color={event.category === "MAJOR" ? "bg-purple-100 text-purple-700" : "bg-blue-50 text-blue-600"}
+              color={
+                event.category === "MAJOR"
+                  ? "bg-purple-100 text-purple-700"
+                  : "bg-blue-50 text-blue-600"
+              }
             />
           )}
         </div>
       </div>
-      {event.approvedBy && <p className="text-xs text-gray-400 mt-2">Approved by {event.approvedBy}</p>}
+
+      {/* ───── Description ───── */}
+      {event.description && (
+        <p className="text-sm text-gray-600 mt-3 line-clamp-3">
+          {event.description}
+        </p>
+      )}
+
+      {/* ───── Meta Info ───── */}
+      {event.approvedBy && (
+        <p className="text-xs text-gray-400 mt-3">
+          ✔ Approved by <span className="font-medium text-gray-600">{event.approvedBy}</span>
+        </p>
+      )}
+
+      {/* ───── Actions ───── */}
       {onDelete && (
-        <div className="mt-3 pt-3 border-t border-gray-100 flex justify-end">
-          <button onClick={onDelete}
-            className="text-xs px-3 py-1.5 border border-red-200 rounded-lg text-red-500 hover:bg-red-50 transition-colors">
-            Delete event
+        <div className="mt-auto pt-4 border-t border-gray-100 flex justify-end">
+          <button
+            onClick={onDelete}
+            className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg 
+              bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
+          >
+            🗑 Delete
           </button>
         </div>
       )}
     </div>
   );
 }
+
 
 function SectionHeader({ title, count }: { title: string; count?: number }) {
   return (

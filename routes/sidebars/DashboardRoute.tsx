@@ -134,16 +134,7 @@ export const DashboardMenu: MenuItemType[] = [
       },
     ],
   },
-  { id: uuid(), title: "Site Management", grouptitle: true },
-  {
-    id: uuid(),
-    title: "Pages",
-    icon: <IconFile size={20} strokeWidth={1.5} />,
-    children: [
-      { id: uuid(), name: "About Section",     link: "maintenance" },
-      { id: uuid(), name: "System Blueprint",  link: "not-found" },
-      { id: uuid(), name: "Knowledge Center",  link: "not-found" },
-      { id: uuid(), name: "Support Desk",      link: "not-found" },
-    ],
-  },
+  { id: uuid(), title: "Support", 
+          link: "/superadmin/Ticket",},
+  
 ];
